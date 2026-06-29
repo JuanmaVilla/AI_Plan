@@ -29,7 +29,10 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { full_name: fullName } },
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/hoy`,
+          },
         });
         if (error) throw error;
 
