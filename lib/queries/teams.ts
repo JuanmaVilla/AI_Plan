@@ -48,19 +48,14 @@ export async function ensureUserHasTeam(): Promise<TeamMembership | null> {
   const owner = profile?.full_name?.trim() || user.email?.split("@")[0] || "yo";
   const teamName = `Equipo de ${owner}`;
 
-  const { data: team, error: teamError } = await supabase
-    .from("teams")
-    .insert({ name: teamName, owner_id: user.id })
-    .select("id")
-    .single();
+  // Crea team + membresía de forma atómica (función SECURITY DEFINER en la BD).
+  // Evita el rollback por RLS al intentar leer el team recién creado.
+  const { data: teamId, error } = await supabase.rpc(
+    "create_team_for_current_user",
+    { team_name: teamName }
+  );
 
-  if (teamError || !team) return null;
+  if (error || !teamId) return null;
 
-  const { error: memberError } = await supabase
-    .from("team_members")
-    .insert({ team_id: team.id, user_id: user.id, role: "owner" });
-
-  if (memberError) return null;
-
-  return { team_id: team.id, role: "owner" };
+  return { team_id: teamId, role: "owner" };
 }

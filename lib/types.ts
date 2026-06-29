@@ -389,6 +389,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_team_for_current_user: {
+        Args: { team_name: string }
+        Returns: string
+      }
       is_team_member: { Args: { t: string }; Returns: boolean }
     }
     Enums: {
