@@ -3,9 +3,11 @@ import type { TaskWithMeta } from "@/lib/queries/tasks";
 export function DaySummaryCard({
   tasks,
   workedMinutes,
+  className = "",
 }: {
   tasks: TaskWithMeta[];
   workedMinutes: number;
+  className?: string;
 }) {
   const total = tasks.length;
   const done = tasks.filter((t) => t.done).length;
@@ -22,48 +24,48 @@ export function DaySummaryCard({
 
   const worked = fmtWork(workedMinutes);
 
-  const circumference = 2 * Math.PI * 20;
+  const circumference = 2 * Math.PI * 22;
   const strokeDashoffset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="glass-card flex flex-col gap-4 rounded-[20px] p-4">
-      <span className="font-body text-xs font-semibold uppercase tracking-[0.12em] text-fg-muted">
+    <div className={`card-soft celeste flex h-full min-h-[300px] flex-col justify-between gap-6 rounded-[26px] p-5 ${className}`}>
+      <span className="font-body text-[11px] font-medium uppercase tracking-[0.12em] text-fg-muted">
         Resumen del día
       </span>
 
       <div className="flex items-center gap-4">
-        {/* Círculo de progreso */}
-        <svg width="52" height="52" viewBox="0 0 52 52" className="shrink-0 -rotate-90">
-          <circle
-            cx="26"
-            cy="26"
-            r="20"
-            fill="none"
-            stroke="var(--border-default)"
-            strokeWidth="4"
-          />
-          <circle
-            cx="26"
-            cy="26"
-            r="20"
-            fill="none"
-            stroke="url(#prog-grad)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            style={{ transition: "stroke-dashoffset 0.5s ease" }}
-          />
-          <defs>
-            <linearGradient id="prog-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0057ff" />
-              <stop offset="100%" stopColor="#00d8ff" />
-            </linearGradient>
-          </defs>
-        </svg>
+        {/* Anillo de progreso suave */}
+        <div className="relative shrink-0">
+          <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90">
+            <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+            <circle
+              cx="30"
+              cy="30"
+              r="22"
+              fill="none"
+              stroke="url(#prog-grad)"
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              style={{ transition: "stroke-dashoffset 0.6s ease" }}
+            />
+            <defs>
+              <linearGradient id="prog-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="var(--color-accent-teal)" />
+                <stop offset="100%" stopColor="var(--color-accent-mint)" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center font-display text-sm font-bold tabular-nums text-fg">
+            {pct}%
+          </span>
+        </div>
+
         <div className="flex flex-col gap-0.5">
-          <span className="font-display text-2xl font-bold text-fg" style={{ letterSpacing: "-0.02em" }}>
-            {done}/{total}
+          <span className="font-display text-3xl font-bold leading-none text-fg" style={{ letterSpacing: "-0.02em" }}>
+            {done}
+            <span className="text-lg text-fg-muted">/{total}</span>
           </span>
           <span className="font-body text-xs text-fg-muted">
             {total === 0
@@ -75,17 +77,10 @@ export function DaySummaryCard({
         </div>
       </div>
 
-      <div className="h-px bg-[var(--border-default)]" />
-
-      <div className="flex items-center justify-between">
-        <span className="font-body text-xs text-fg-muted">Avance</span>
-        <span className="font-body text-sm font-semibold text-accent-cyan">{pct}%</span>
-      </div>
-
       {worked && (
-        <div className="flex items-center justify-between">
-          <span className="font-body text-xs text-fg-muted">Tiempo trabajado</span>
-          <span className="font-body text-sm font-semibold text-accent-mint">{worked}</span>
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-lg font-bold text-accent-mint">{worked}</span>
+          <span className="font-body text-xs text-fg-muted">trabajado hoy</span>
         </div>
       )}
     </div>

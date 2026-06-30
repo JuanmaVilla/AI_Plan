@@ -34,7 +34,7 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
   }
 
   return (
-    <div className="glass-card flex flex-col gap-4 rounded-2xl p-5">
+    <div className="glass-card flex flex-col gap-4 rounded-[26px] p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{project.icon}</span>

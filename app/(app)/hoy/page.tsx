@@ -59,28 +59,24 @@ export default async function HoyPage() {
       {tasks.length === 0 ? (
         <EmptyState />
       ) : (
-        /* ── Bento grid ── */
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {tasks.map((task, i) => (
-            <div
-              key={task.id}
-              className={
-                // Primera card ocupa ancho completo cuando hay 3+ tareas (efecto bento)
-                tasks.length >= 3 && i === 0 ? "md:col-span-2 xl:col-span-1" : ""
-              }
-            >
-              <TaskBentoCard task={task} />
-            </div>
-          ))}
+        /* ── Resumen como columna angosta y alta a la izquierda; tareas en grid ── */
+        <div className="flex flex-col gap-4 lg:flex-row">
+          {/* Resumen: delgado + alto (ocupa toda la altura de la grilla) */}
+          <div className="lg:w-56 lg:shrink-0">
+            <DaySummaryCard
+              tasks={tasks}
+              workedMinutes={workStats.closedMinutes}
+            />
+          </div>
 
-          {/* Card resumen */}
-          <DaySummaryCard
-            tasks={tasks}
-            workedMinutes={workStats.closedMinutes}
-          />
+          <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {tasks.map((task) => (
+              <TaskBentoCard key={task.id} task={task} />
+            ))}
 
-          {/* Card agregar tarea sutil */}
-          <AddTaskCard />
+            {/* Card agregar tarea, translúcida y sutil */}
+            <AddTaskCard />
+          </div>
         </div>
       )}
     </div>
@@ -89,12 +85,18 @@ export default async function HoyPage() {
 
 function AddTaskCard() {
   return (
-    <div className="flex items-center justify-center rounded-[20px] border border-dashed border-[var(--border-default)] p-6 transition-colors hover:border-[var(--border-active)]">
-      <NewTaskButton
-        defaultDay="hoy"
-        label="+ Agregar tarea para hoy"
-      />
-    </div>
+    <NewTaskButton
+      defaultDay="hoy"
+      label="Agregar tarea"
+      variant="ghost"
+      showIcon={false}
+      className="card-ghost group flex h-auto min-h-[140px] w-full flex-col items-center justify-center gap-2.5 rounded-[26px] p-6 text-center font-body text-xs font-medium text-fg-muted hover:bg-transparent hover:text-fg"
+      iconBefore={
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/8 font-display text-xl text-fg-muted transition-colors group-hover:text-fg">
+          +
+        </span>
+      }
+    />
   );
 }
 

@@ -62,7 +62,7 @@ export function TaskCard({
   }
 
   return (
-    <div className="glass-card rounded-2xl p-4 transition-colors">
+    <div className="glass-card rounded-[26px] p-5 transition-colors">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="pt-0.5">
@@ -70,7 +70,7 @@ export function TaskCard({
           </div>
           <div className="flex flex-col gap-1">
             <span
-              className={`font-body text-base font-medium ${
+              className={`font-primary text-base font-bold leading-snug ${
                 done ? "text-fg-muted line-through" : "text-fg"
               }`}
             >

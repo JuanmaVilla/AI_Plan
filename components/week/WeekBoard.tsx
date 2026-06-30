@@ -104,10 +104,12 @@ export function WeekBoard({
     <div className="flex flex-col gap-6 px-6 py-10">
       <header className="flex items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <span className="font-body text-sm font-semibold tracking-[0.06em] text-accent-cyan">
+          <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
             Semana
           </span>
-          <h1 className="display-heading text-5xl text-fg">Tu semana</h1>
+          <h1 className="font-display text-4xl font-black text-fg" style={{ letterSpacing: "-0.03em" }}>
+            Tu semana
+          </h1>
         </div>
         <button
           type="button"

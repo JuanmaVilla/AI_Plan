@@ -70,13 +70,13 @@ export function WorkTimer({
   }
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-[var(--border-default)] bg-surface/60 px-5 py-3 backdrop-blur-sm">
+    <div className="card-soft mx-auto flex w-fit max-w-full items-center gap-5 rounded-full px-3 py-2.5 pl-6">
       {/* Indicador estado */}
       <div className="flex items-center gap-2">
         <span
           className={`h-2 w-2 rounded-full ${isRunning ? "animate-pulse bg-accent-mint" : "bg-fg-disabled"}`}
         />
-        <span className="font-body text-xs font-semibold tracking-widest text-fg-muted">
+        <span className="font-body text-[11px] font-medium tracking-[0.16em] text-fg-muted">
           {isRunning ? "TRABAJANDO" : totalMinutes > 0 ? "PAUSADO" : "SIN INICIAR"}
         </span>
       </div>
@@ -89,17 +89,12 @@ export function WorkTimer({
         {fmtTime(totalSeconds)}
       </span>
 
-      {/* Bloques */}
-      {(blocks + (isRunning ? 1 : 0)) > 0 && (
-        <span className="font-body text-xs text-fg-muted">
-          {blocks + (isRunning ? 1 : 0)} {blocks + (isRunning ? 1 : 0) === 1 ? "bloque" : "bloques"}
-        </span>
-      )}
-
-      {/* Resumen si hay tiempo cerrado */}
+      {/* Detalle secundario sutil */}
       {totalMinutes > 0 && (
-        <span className="font-body text-xs text-fg-muted">
-          {fmtMinutes(totalMinutes)} registrados
+        <span className="hidden font-body text-xs text-fg-muted sm:inline">
+          {fmtMinutes(totalMinutes)}
+          {(blocks + (isRunning ? 1 : 0)) > 0 &&
+            ` · ${blocks + (isRunning ? 1 : 0)} ${blocks + (isRunning ? 1 : 0) === 1 ? "bloque" : "bloques"}`}
         </span>
       )}
 
@@ -108,10 +103,10 @@ export function WorkTimer({
         type="button"
         onClick={isRunning ? pause : start}
         disabled={pending}
-        className={`ml-auto flex items-center gap-1.5 rounded-xl px-4 py-2 font-body text-sm font-bold transition-all disabled:opacity-50 ${
+        className={`flex items-center gap-1.5 rounded-full px-4 py-2 font-body text-sm font-bold transition-all disabled:opacity-50 ${
           isRunning
-            ? "border border-[var(--border-default)] bg-elevated text-fg hover:border-[var(--color-warning)] hover:text-[var(--color-warning)]"
-            : "text-white shadow-[0_4px_16px_rgba(0,87,255,0.35)]"
+            ? "bg-white/8 text-fg hover:bg-white/12 hover:text-[var(--color-warning)]"
+            : "text-white shadow-[0_4px_18px_-6px_rgba(0,87,255,0.5)]"
         }`}
         style={!isRunning ? { background: "var(--brand-gradient)" } : undefined}
       >

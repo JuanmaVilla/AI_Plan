@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Target,
   Inbox,
+  Newspaper,
   Plus,
   LogOut,
   PanelLeftClose,
@@ -25,6 +26,7 @@ const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/backlog", label: "Backlog", icon: Inbox },
   { href: "/proyectos", label: "Proyectos", icon: FolderKanban },
   { href: "/objetivos", label: "Objetivos", icon: Target },
+  { href: "/novedades", label: "Novedades", icon: Newspaper },
   { href: "/done", label: "Hecho", icon: CheckCircle2 },
 ];
 

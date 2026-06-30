@@ -109,11 +109,11 @@ function Row({
   }
 
   return (
-    <div className="glass-card flex items-center gap-4 rounded-2xl p-4">
+    <div className="glass-card flex items-center gap-4 rounded-[26px] p-5">
       <DoneToggle done={done} onToggle={toggleDone} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span
-          className={`font-body text-base font-medium ${
+          className={`font-primary text-base font-bold leading-snug ${
             done ? "text-fg-muted line-through" : "text-fg"
           }`}
         >
