@@ -108,6 +108,9 @@
   --brand-gradient: linear-gradient(90deg, #0057ff 0%, #0870ff 40%, #00d8ff 100%);
   --brand-gradient-lr: linear-gradient(90deg, #0870ff 0%, #00d8ff 100%);
 
+  --accent-cyan-dim: rgba(12, 192, 223, 0.25);
+  --accent-blue-dim: rgba(2, 79, 206, 0.25);
+
   --border-default: rgba(255, 255, 255, 0.08);
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-active: rgba(0, 212, 255, 0.5);

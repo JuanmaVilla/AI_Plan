@@ -1,18 +1,21 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser, getCurrentProfile } from "@/lib/queries/auth";
 
 export type TeamMembership = {
   team_id: string;
   role: string;
 };
 
-/** Devuelve la primera membresía de equipo del usuario logueado, o null. */
-export async function getMyTeam(): Promise<TeamMembership | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/**
+ * Primera membresía de equipo del usuario logueado, o null.
+ * Cacheado por request: layout y páginas comparten la misma consulta.
+ */
+export const getMyTeam = cache(async (): Promise<TeamMembership | null> => {
+  const user = await getCurrentUser();
   if (!user) return null;
 
+  const supabase = await createClient();
   const { data } = await supabase
     .from("team_members")
     .select("team_id, role")
@@ -21,7 +24,7 @@ export async function getMyTeam(): Promise<TeamMembership | null> {
     .maybeSingle();
 
   return data ?? null;
-}
+});
 
 /**
  * Asegura que el usuario logueado tenga un equipo.
@@ -29,24 +32,18 @@ export async function getMyTeam(): Promise<TeamMembership | null> {
  * Idempotente: si ya tiene equipo, no hace nada.
  */
 export async function ensureUserHasTeam(): Promise<TeamMembership | null> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) return null;
 
   const existing = await getMyTeam();
   if (existing) return existing;
 
   // Nombre del equipo a partir del perfil (o del email).
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
+  const profile = await getCurrentProfile();
   const owner = profile?.full_name?.trim() || user.email?.split("@")[0] || "yo";
   const teamName = `Equipo de ${owner}`;
+
+  const supabase = await createClient();
 
   // Crea team + membresía de forma atómica (función SECURITY DEFINER en la BD).
   // Evita el rollback por RLS al intentar leer el team recién creado.

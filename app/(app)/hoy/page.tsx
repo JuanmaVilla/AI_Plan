@@ -11,10 +11,10 @@ export default async function HoyPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
       <header className="flex flex-col gap-1">
-        <span className="font-body text-xs uppercase tracking-[0.12em] text-fg-muted">
+        <span className="font-body text-sm font-semibold tracking-[0.06em] text-accent-cyan">
           Hoy · {humanDay(todayISO())}
         </span>
-        <h1 className="font-display text-3xl font-bold text-fg" style={{ lineHeight: 1.1 }}>
+        <h1 className="font-display text-4xl font-bold text-fg" style={{ lineHeight: 1.15 }}>
           Lo de hoy
         </h1>
       </header>
