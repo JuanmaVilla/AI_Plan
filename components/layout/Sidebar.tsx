@@ -5,8 +5,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CalendarCheck,
+  CalendarDays,
+  CheckCircle2,
   FolderKanban,
   Target,
+  Inbox,
   Plus,
   LogOut,
   PanelLeftClose,
@@ -14,11 +17,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 
 const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/hoy", label: "Hoy", icon: CalendarCheck },
+  { href: "/semana", label: "Semana", icon: CalendarDays },
+  { href: "/backlog", label: "Backlog", icon: Inbox },
   { href: "/proyectos", label: "Proyectos", icon: FolderKanban },
   { href: "/objetivos", label: "Objetivos", icon: Target },
+  { href: "/done", label: "Hecho", icon: CheckCircle2 },
 ];
 
 function greeting() {
@@ -33,6 +40,7 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
   const initial = name.charAt(0).toUpperCase() || "?";
 
   useEffect(() => {
@@ -117,8 +125,9 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
         </nav>
 
         {/* Acción primaria flotante */}
-        <Link
-          href="/hoy"
+        <button
+          type="button"
+          onClick={() => setNewTaskOpen(true)}
           title="Nueva tarea"
           className={`mt-auto flex items-center justify-center gap-2 rounded-2xl py-3 font-body text-sm font-bold text-white shadow-[0_8px_24px_rgba(0,87,255,0.4)] transition-transform hover:scale-[1.02] ${
             collapsed ? "px-0" : "px-4"
@@ -127,7 +136,7 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
         >
           <Plus className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Nueva tarea</span>}
-        </Link>
+        </button>
 
         {/* Salir */}
         <button
@@ -181,6 +190,8 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
           </button>
         </div>
       </div>
+
+      <NewTaskDialog open={newTaskOpen} onOpenChange={setNewTaskOpen} />
     </>
   );
 }

@@ -5,11 +5,19 @@ import { getCurrentUser } from "@/lib/queries/auth";
 export type Project = Tables<"projects">;
 export type ProjectType = "proyecto" | "objetivo";
 
-/** Proyecto con avance derivado (promedio de sus tareas) y sus tareas de backlog. */
+export type ProjectTaskLite = {
+  id: string;
+  title: string;
+  done: boolean;
+  progress: number;
+  scheduled_date: string | null;
+};
+
+/** Proyecto con avance derivado (promedio de sus tareas) y TODAS sus tareas. */
 export type ProjectWithStats = Project & {
   progress: number; // 0–100, promedio de las tareas; 0 si no tiene
   taskCount: number;
-  backlog: { id: string; title: string }[];
+  tasks: ProjectTaskLite[];
 };
 
 /** Proyectos del equipo (no archivados), opcionalmente filtrados por tipo. */
@@ -47,23 +55,31 @@ export async function getProjectsWithStats(
   const ids = projects.map((p) => p.id);
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, project_id, title, progress, scheduled_date")
+    .select("id, project_id, title, progress, scheduled_date, done")
     .eq("team_id", teamId)
-    .in("project_id", ids);
+    .in("project_id", ids)
+    .order("created_at", { ascending: true });
 
   const rows = tasks ?? [];
 
   return projects.map((p) => {
     const own = rows.filter((t) => t.project_id === p.id);
+    // Avance: promedio considerando terminadas como 100%.
     const progress =
       own.length === 0
         ? 0
-        : Math.round(own.reduce((sum, t) => sum + t.progress, 0) / own.length);
-    const backlog = own
-      .filter((t) => t.scheduled_date === null)
-      .map((t) => ({ id: t.id, title: t.title }));
+        : Math.round(
+            own.reduce((sum, t) => sum + (t.done ? 100 : t.progress), 0) / own.length
+          );
+    const list: ProjectTaskLite[] = own.map((t) => ({
+      id: t.id,
+      title: t.title,
+      done: t.done,
+      progress: t.progress,
+      scheduled_date: t.scheduled_date,
+    }));
 
-    return { ...p, progress, taskCount: own.length, backlog };
+    return { ...p, progress, taskCount: own.length, tasks: list };
   });
 }
 

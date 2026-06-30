@@ -207,6 +207,7 @@ export type Database = {
           assignee_id: string | null
           created_at: string
           created_by: string
+          done: boolean
           id: string
           note: string
           progress: number
@@ -219,6 +220,7 @@ export type Database = {
           assignee_id?: string | null
           created_at?: string
           created_by: string
+          done?: boolean
           id?: string
           note?: string
           progress?: number
@@ -231,6 +233,7 @@ export type Database = {
           assignee_id?: string | null
           created_at?: string
           created_by?: string
+          done?: boolean
           id?: string
           note?: string
           progress?: number

@@ -32,7 +32,7 @@ export async function createProjectAction(input: {
   if (!project) return { ok: false as const, error: "No se pudo crear." };
 
   revalidateProjects();
-  return { ok: true as const };
+  return { ok: true as const, id: project.id, name: project.name, icon: project.icon };
 }
 
 /** Agrega una tarea al backlog del proyecto (sin día, sin responsable). */

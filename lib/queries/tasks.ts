@@ -30,6 +30,81 @@ export async function getTodayTasks(teamId: string): Promise<TaskWithProject[]> 
   return (data as TaskWithProject[]) ?? [];
 }
 
+/**
+ * Tareas de la semana (rango de fechas dado) del equipo, de todos los miembros.
+ * Incluye proyecto y responsable para pintar avatar.
+ */
+export type TaskWithMeta = TaskWithProject & {
+  assignee: Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color"> | null;
+};
+
+export async function getWeekTasks(
+  teamId: string,
+  start: string,
+  end: string
+): Promise<TaskWithMeta[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tasks")
+    .select(
+      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
+    )
+    .eq("team_id", teamId)
+    .gte("scheduled_date", start)
+    .lte("scheduled_date", end)
+    .order("created_at", { ascending: true });
+
+  return (data as TaskWithMeta[]) ?? [];
+}
+
+/** Tareas en backlog del equipo (scheduled_date IS NULL). */
+export async function getBacklogTasks(teamId: string): Promise<TaskWithMeta[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tasks")
+    .select(
+      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
+    )
+    .eq("team_id", teamId)
+    .is("scheduled_date", null)
+    .order("created_at", { ascending: true });
+
+  return (data as TaskWithMeta[]) ?? [];
+}
+
+/** Tareas terminadas del equipo (done = true), más recientes primero. */
+export async function getDoneTasks(teamId: string): Promise<TaskWithMeta[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tasks")
+    .select(
+      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
+    )
+    .eq("team_id", teamId)
+    .eq("done", true)
+    .order("created_at", { ascending: false });
+
+  return (data as TaskWithMeta[]) ?? [];
+}
+
+/** Reagenda una tarea: a un día concreto ('yyyy-MM-dd') o al backlog (null). */
+export async function updateTaskSchedule(
+  taskId: string,
+  scheduledDate: string | null
+): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("tasks").update({ scheduled_date: scheduledDate }).eq("id", taskId);
+}
+
+/** Asigna (o desasigna con null) responsable. */
+export async function updateTaskAssignee(
+  taskId: string,
+  assigneeId: string | null
+): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("tasks").update({ assignee_id: assigneeId }).eq("id", taskId);
+}
+
 export type CreateTaskInput = {
   teamId: string;
   projectId: string;
@@ -71,6 +146,12 @@ export async function updateTaskProgress(taskId: string, progress: number): Prom
 export async function updateTaskNote(taskId: string, note: string): Promise<void> {
   const supabase = await createClient();
   await supabase.from("tasks").update({ note }).eq("id", taskId);
+}
+
+/** Marca/desmarca la tarea como terminada (tacha, no borra). */
+export async function updateTaskDone(taskId: string, done: boolean): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("tasks").update({ done }).eq("id", taskId);
 }
 
 export async function deleteTask(taskId: string): Promise<void> {

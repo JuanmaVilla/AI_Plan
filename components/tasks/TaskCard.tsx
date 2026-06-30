@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { setProgressAction, setNoteAction, deleteTaskAction } from "@/app/(app)/hoy/actions";
+import { toggleDoneAction } from "@/lib/actions/tasks";
+import { DoneToggle } from "@/components/tasks/DoneToggle";
 
 type NoteState = "idle" | "saving" | "saved";
 
@@ -22,8 +24,14 @@ export function TaskCard({ task }: { task: TaskWithProject }) {
   const [note, setNote] = useState(task.note);
   const [savedNote, setSavedNote] = useState(task.note);
   const [noteState, setNoteState] = useState<NoteState>("idle");
+  const [done, setDone] = useState(task.done);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  function toggleDone(next: boolean) {
+    setDone(next);
+    startTransition(() => toggleDoneAction(task.id, next));
+  }
 
   function commitProgress(v: number) {
     setProgress(v);
@@ -46,13 +54,24 @@ export function TaskCard({ task }: { task: TaskWithProject }) {
   return (
     <div className="glass-card rounded-2xl p-4 transition-colors">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="font-body text-base font-medium text-fg">{task.title}</span>
-          {task.project && (
-            <span className="font-body text-xs text-fg-muted">
-              {task.project.icon} {task.project.name}
+        <div className="flex items-start gap-3">
+          <div className="pt-0.5">
+            <DoneToggle done={done} onToggle={toggleDone} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span
+              className={`font-body text-base font-medium ${
+                done ? "text-fg-muted line-through" : "text-fg"
+              }`}
+            >
+              {task.title}
             </span>
-          )}
+            {task.project && (
+              <span className="font-body text-xs text-fg-muted">
+                {task.project.icon} {task.project.name}
+              </span>
+            )}
+          </div>
         </div>
         <button
           type="button"

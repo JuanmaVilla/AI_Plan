@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import type { ProjectWithStats } from "@/lib/queries/projects";
+import type { ProjectWithStats, ProjectTaskLite } from "@/lib/queries/projects";
 import { addBacklogTaskAction, archiveProjectAction } from "@/lib/actions/projects";
+import { toggleDoneAction } from "@/lib/actions/tasks";
+import { DoneToggle } from "@/components/tasks/DoneToggle";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -70,16 +72,11 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
         </div>
       </div>
 
-      {/* Backlog */}
-      {project.backlog.length > 0 && (
+      {/* Tareas del proyecto (todas, agendadas o no) */}
+      {project.tasks.length > 0 && (
         <ul className="flex flex-col gap-1">
-          {project.backlog.map((t) => (
-            <li
-              key={t.id}
-              className="rounded-[var(--radius-xs)] bg-surface px-3 py-1.5 font-body text-sm text-fg-secondary"
-            >
-              {t.title}
-            </li>
+          {project.tasks.map((t) => (
+            <TaskRow key={t.id} task={t} />
           ))}
         </ul>
       )}
@@ -127,5 +124,33 @@ export function ProjectCard({ project }: { project: ProjectWithStats }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function TaskRow({ task }: { task: ProjectTaskLite }) {
+  const [done, setDone] = useState(task.done);
+  const [, startTransition] = useTransition();
+
+  function toggleDone(next: boolean) {
+    setDone(next);
+    startTransition(() => toggleDoneAction(task.id, next));
+  }
+
+  return (
+    <li className="flex items-center gap-2 rounded-[var(--radius-xs)] bg-surface px-3 py-1.5">
+      <DoneToggle done={done} onToggle={toggleDone} size={16} />
+      <span
+        className={`flex-1 font-body text-sm ${
+          done ? "text-fg-muted line-through" : "text-fg-secondary"
+        }`}
+      >
+        {task.title}
+      </span>
+      {task.scheduled_date === null && (
+        <span className="font-body text-[10px] uppercase tracking-wide text-fg-disabled">
+          backlog
+        </span>
+      )}
+    </li>
   );
 }
