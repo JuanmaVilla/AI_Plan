@@ -16,10 +16,20 @@ import {
 import { setProgressAction, setNoteAction, deleteTaskAction } from "@/app/(app)/hoy/actions";
 import { toggleDoneAction } from "@/lib/actions/tasks";
 import { DoneToggle } from "@/components/tasks/DoneToggle";
+import { Timer } from "@/components/tasks/Timer";
+import type { TimeSession } from "@/lib/queries/time";
 
 type NoteState = "idle" | "saving" | "saved";
 
-export function TaskCard({ task }: { task: TaskWithProject }) {
+export function TaskCard({
+  task,
+  activeSession = null,
+  todayMinutes = 0,
+}: {
+  task: TaskWithProject;
+  activeSession?: TimeSession | null;
+  todayMinutes?: number;
+}) {
   const [progress, setProgress] = useState(task.progress);
   const [note, setNote] = useState(task.note);
   const [savedNote, setSavedNote] = useState(task.note);
@@ -118,6 +128,10 @@ export function TaskCard({ task }: { task: TaskWithProject }) {
             </Button>
           </div>
         )}
+      </div>
+
+      <div className="mt-3 border-t border-[var(--border-default)] pt-2">
+        <Timer taskId={task.id} activeSession={activeSession} todayMinutes={todayMinutes} />
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

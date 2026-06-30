@@ -14,20 +14,22 @@ export type TaskWithProject = Task & {
  * Tareas de HOY del usuario logueado en su equipo.
  * Hoy = scheduled_date == fecha de hoy, asignadas a mí.
  */
-export async function getTodayTasks(teamId: string): Promise<TaskWithProject[]> {
+export async function getTodayTasks(teamId: string): Promise<TaskWithMeta[]> {
   const user = await getCurrentUser();
   if (!user) return [];
 
   const supabase = await createClient();
   const { data } = await supabase
     .from("tasks")
-    .select("*, project:projects(name, color, icon)")
+    .select(
+      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
+    )
     .eq("team_id", teamId)
     .eq("assignee_id", user.id)
     .eq("scheduled_date", todayISO())
     .order("created_at", { ascending: true });
 
-  return (data as TaskWithProject[]) ?? [];
+  return (data as TaskWithMeta[]) ?? [];
 }
 
 /**
