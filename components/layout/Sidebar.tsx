@@ -1,9 +1,19 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { CalendarCheck, FolderKanban, Target, type LucideIcon } from "lucide-react";
-import { LogoutButton } from "@/components/layout/LogoutButton";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  CalendarCheck,
+  FolderKanban,
+  Target,
+  Plus,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  type LucideIcon,
+} from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/hoy", label: "Hoy", icon: CalendarCheck },
@@ -11,68 +21,166 @@ const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/objetivos", label: "Objetivos", icon: Target },
 ];
 
-export function Sidebar({
-  name,
-  avatarColor,
-}: {
-  name: string;
-  avatarColor: string;
-}) {
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 6) return "Buenas noches";
+  if (h < 13) return "Buen día";
+  if (h < 20) return "Buenas tardes";
+  return "Buenas noches";
+}
+
+export function Sidebar({ name, avatarColor }: { name: string; avatarColor: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
   const initial = name.charAt(0).toUpperCase() || "?";
 
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("sidebar-collapsed") === "1");
+  }, []);
+
+  function toggle() {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+
+  async function logout() {
+    await createClient().auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
-    <aside className="sticky top-0 flex h-auto shrink-0 flex-row items-center gap-2 border-b border-[var(--border-default)] bg-surface px-4 py-3 md:h-screen md:w-[248px] md:flex-col md:items-stretch md:gap-2 md:border-r md:border-b-0 md:px-4 md:py-6">
-      {/* Marca */}
-      <Link href="/hoy" className="flex items-center gap-2.5 md:px-2 md:pb-6">
-        <span
-          className="h-7 w-7 shrink-0 rounded-[var(--radius-sm)] shadow-[var(--shadow-glow-sm)]"
-          style={{ background: "var(--brand-gradient)" }}
-        />
-        <span className="hidden font-display text-base font-bold tracking-tight text-fg sm:inline">
-          Hay Equipo
-        </span>
-      </Link>
-
-      {/* Nav */}
-      <nav className="flex flex-1 flex-row gap-1 md:flex-col md:flex-none">
-        <span className="hidden px-2 pt-2 pb-1 font-body text-[10px] uppercase tracking-[0.12em] text-fg-muted md:block">
-          Menú
-        </span>
-        {LINKS.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 font-body text-sm font-medium transition-colors ${
-                active
-                  ? "bg-[var(--accent-blue-dim)] text-fg shadow-[inset_2px_0_0_var(--accent-cyan)]"
-                  : "text-fg-muted hover:bg-elevated hover:text-fg-secondary"
-              }`}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer: identidad + salir */}
-      <div className="flex items-center gap-2 md:mt-auto md:flex-col md:items-stretch md:gap-3">
-        <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-base px-3 py-2">
+    <>
+      {/* ── Desktop: panel de vidrio flotante ── */}
+      <aside
+        className={`liquid-glass sticky top-3 z-20 m-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col gap-2 rounded-[28px] p-3 transition-[width] duration-300 md:flex ${
+          collapsed ? "w-[84px]" : "w-[264px]"
+        }`}
+      >
+        {/* Avatar + saludo */}
+        <div className="flex items-center gap-3 px-1 pt-1 pb-3">
           <span
-            className="flex h-6 w-6 items-center justify-center rounded-full font-body text-[11px] font-bold text-white"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-[var(--shadow-glow-sm)]"
             style={{ background: avatarColor }}
           >
             {initial}
           </span>
-          <span className="hidden font-body text-sm font-semibold text-fg-secondary sm:inline">
-            {name}
-          </span>
+          {!collapsed && (
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="font-body text-xs text-fg-muted">{greeting()} 👋</span>
+              <span className="truncate font-primary text-base font-bold text-fg">{name}</span>
+            </div>
+          )}
         </div>
-        <LogoutButton />
+
+        {/* Toggle colapsar */}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={collapsed ? "Expandir" : "Colapsar"}
+          className="absolute -right-3 top-6 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--glass-border)] bg-elevated text-fg-muted shadow-[var(--shadow-1)] transition-colors hover:text-accent-cyan"
+        >
+          {collapsed ? <PanelLeftOpen className="h-3.5 w-3.5" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+        </button>
+
+        {!collapsed && (
+          <span className="px-2 pb-1 font-body text-[10px] uppercase tracking-[0.14em] text-fg-muted">
+            Menú
+          </span>
+        )}
+
+        {/* Nav */}
+        <nav className="flex flex-col gap-1.5">
+          {LINKS.map(({ href, label, icon: Icon }) => {
+            const active = pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                title={label}
+                className={`group flex items-center gap-3 rounded-2xl px-3 py-2.5 font-body text-sm font-semibold transition-all ${
+                  active
+                    ? "text-white shadow-[0_6px_20px_rgba(0,87,255,0.45)]"
+                    : "text-fg-muted hover:bg-white/5 hover:text-fg"
+                } ${collapsed ? "justify-center" : ""}`}
+                style={active ? { background: "#0057FF" } : undefined}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>{label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Acción primaria flotante */}
+        <Link
+          href="/hoy"
+          title="Nueva tarea"
+          className={`mt-auto flex items-center justify-center gap-2 rounded-2xl py-3 font-body text-sm font-bold text-white shadow-[0_8px_24px_rgba(0,87,255,0.4)] transition-transform hover:scale-[1.02] ${
+            collapsed ? "px-0" : "px-4"
+          }`}
+          style={{ background: "var(--brand-gradient)" }}
+        >
+          <Plus className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Nueva tarea</span>}
+        </Link>
+
+        {/* Salir */}
+        <button
+          type="button"
+          onClick={logout}
+          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 font-body text-sm font-medium text-fg-muted transition-colors hover:bg-white/5 hover:text-[var(--color-error)] ${
+            collapsed ? "justify-center" : ""
+          }`}
+          title="Salir"
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          {!collapsed && <span>Salir</span>}
+        </button>
+      </aside>
+
+      {/* ── Mobile: barra de vidrio arriba ── */}
+      <div className="sticky top-0 z-20 flex items-center gap-2 p-3 md:hidden">
+        <div className="liquid-glass flex w-full items-center gap-2 rounded-3xl px-3 py-2">
+          <span
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+            style={{ background: avatarColor }}
+          >
+            {initial}
+          </span>
+          <nav className="flex flex-1 items-center justify-around">
+            {LINKS.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-label={label}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                    active ? "text-white" : "text-fg-muted"
+                  }`}
+                  style={active ? { background: "#0057FF" } : undefined}
+                >
+                  <Icon className="h-4 w-4" />
+                  {active && <span>{label}</span>}
+                </Link>
+              );
+            })}
+          </nav>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Salir"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-fg-muted hover:text-[var(--color-error)]"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </aside>
+    </>
   );
 }

@@ -19,7 +19,7 @@ export default async function AppLayout({
   const avatarColor = profile?.avatar_color || "#0cc0df";
 
   return (
-    <div className="flex min-h-screen flex-col bg-base md:grid md:grid-cols-[248px_1fr]">
+    <div className="flex min-h-screen flex-col bg-base md:flex-row">
       <Sidebar name={name} avatarColor={avatarColor} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>

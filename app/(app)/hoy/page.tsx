@@ -14,9 +14,7 @@ export default async function HoyPage() {
         <span className="font-body text-sm font-semibold tracking-[0.06em] text-accent-cyan">
           Hoy · {humanDay(todayISO())}
         </span>
-        <h1 className="font-display text-4xl font-bold text-fg" style={{ lineHeight: 1.15 }}>
-          Lo de hoy
-        </h1>
+        <h1 className="display-heading text-5xl text-fg">Lo de hoy</h1>
       </header>
 
       <QuickAddTask />

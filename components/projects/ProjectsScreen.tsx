@@ -28,9 +28,7 @@ export async function ProjectsScreen({ type }: { type: ProjectType }) {
           <span className="font-body text-sm font-semibold tracking-[0.06em] text-accent-cyan">
             {copy.kicker}
           </span>
-          <h1 className="font-display text-4xl font-bold text-fg" style={{ lineHeight: 1.15 }}>
-            {copy.title}
-          </h1>
+          <h1 className="display-heading text-5xl text-fg">{copy.title}</h1>
         </div>
         <NewProjectDialog type={type} />
       </header>

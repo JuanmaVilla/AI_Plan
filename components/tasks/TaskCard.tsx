@@ -44,7 +44,7 @@ export function TaskCard({ task }: { task: TaskWithProject }) {
   }
 
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--border-default)] bg-elevated p-4 transition-colors hover:border-[var(--border-active)]">
+    <div className="glass-card rounded-2xl p-4 transition-colors">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <span className="font-body text-base font-medium text-fg">{task.title}</span>
