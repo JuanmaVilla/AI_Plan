@@ -31,6 +31,17 @@ export function weekRange(base: Date = new Date()): { start: string; end: string
   };
 }
 
+/** 30 días desde el lunes de la semana actual (los primeros 7 = la semana). */
+export function next30Days(base: Date = new Date()): string[] {
+  const monday = startOfWeek(base, { weekStartsOn: 1 });
+  return Array.from({ length: 30 }, (_, i) => toISODate(addDays(monday, i)));
+}
+
+export function monthRange(base: Date = new Date()): { start: string; end: string } {
+  const monday = startOfWeek(base, { weekStartsOn: 1 });
+  return { start: toISODate(monday), end: toISODate(addDays(monday, 29)) };
+}
+
 /** ¿La fecha ISO 'yyyy-MM-dd' es hoy? */
 export function isToday(iso: string): boolean {
   return dfIsToday(parseISO(iso));

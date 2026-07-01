@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import type { ProjectType } from "@/lib/queries/projects";
+import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR } from "@/lib/projectColors";
 
 const ICONS = ["📌", "🚀", "🎯", "💡", "📈", "🛠️", "📣", "💰", "🧩", "❤️", "🔥", "🌱"];
 
@@ -21,6 +22,7 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
   const [name, setName] = useState("");
   const [kpi, setKpi] = useState("");
   const [icon, setIcon] = useState(ICONS[0]);
+  const [color, setColor] = useState<string>(DEFAULT_PROJECT_COLOR);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -28,6 +30,7 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
     setName("");
     setKpi("");
     setIcon(ICONS[0]);
+    setColor(DEFAULT_PROJECT_COLOR);
     setError(null);
   }
 
@@ -37,7 +40,7 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
       return;
     }
     startTransition(async () => {
-      const res = await createProjectAction({ name, type, kpi, icon });
+      const res = await createProjectAction({ name, type, kpi, icon, color });
       if (res.ok) {
         reset();
         setOpen(false);
@@ -99,6 +102,25 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
                   >
                     {e}
                   </button>
+                ))}
+              </div>
+            </Labeled>
+
+            <Labeled label="Color">
+              <div className="flex flex-wrap gap-2">
+                {PROJECT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    aria-label={`Color ${c}`}
+                    className="h-7 w-7 rounded-full transition-transform hover:scale-110"
+                    style={{
+                      background: c,
+                      outline: color === c ? "2px solid #fff" : "none",
+                      outlineOffset: "2px",
+                    }}
+                  />
                 ))}
               </div>
             </Labeled>

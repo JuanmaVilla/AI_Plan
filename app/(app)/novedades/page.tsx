@@ -1,19 +1,27 @@
 import { getMyTeam } from "@/lib/queries/teams";
+import { getCurrentUser } from "@/lib/queries/auth";
 import { getNewsEntries } from "@/lib/queries/news";
 import { getProjects } from "@/lib/queries/projects";
+import { getTodayWorkStats } from "@/lib/queries/time";
 import { humanDay, todayISO } from "@/lib/dates";
+import { WorkTimer } from "@/components/hoy/WorkTimer";
 import { NewsForm } from "@/components/novedades/NewsForm";
 import { NewsFeed } from "@/components/novedades/NewsFeed";
 import type { PickProject } from "@/lib/actions/tasks";
 
 export default async function NovedadesPage() {
-  const team = await getMyTeam();
+  const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
   if (!team) return null;
 
   const [entries, rawProjects] = await Promise.all([
     getNewsEntries(team.team_id),
     getProjects(team.team_id),
   ]);
+
+  const workStats =
+    user && team
+      ? await getTodayWorkStats(user.id, team.team_id)
+      : { closedMinutes: 0, blocks: 0, activeSession: null };
 
   const projects: PickProject[] = rawProjects.map((p) => ({
     id: p.id,
@@ -24,6 +32,12 @@ export default async function NovedadesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">
+      <WorkTimer
+        closedMinutes={workStats.closedMinutes}
+        blocks={workStats.blocks}
+        activeSession={workStats.activeSession}
+      />
+
       <header className="flex flex-col gap-1">
         <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
           {humanDay(todayISO())}

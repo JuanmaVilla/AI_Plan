@@ -43,13 +43,17 @@ function Row({ task }: { task: TaskWithMeta }) {
 
   const a = task.assignee;
   const initial = a?.full_name?.charAt(0).toUpperCase() ?? "";
+  const proj = task.project?.color || "#5b8def";
 
   return (
-    <div className="glass-card flex items-center gap-4 rounded-[26px] p-5">
+    <div
+      className="glass-card proj-glow flex items-center gap-4 rounded-[26px] p-5"
+      style={{ ["--proj" as string]: proj }}
+    >
       <DoneToggle done={done} onToggle={toggleDone} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <span
-          className={`font-primary text-base font-bold leading-snug ${
+          className={`font-primary text-2xl font-black leading-tight tracking-[-0.02em] ${
             done ? "text-fg-muted line-through" : "text-fg"
           }`}
         >

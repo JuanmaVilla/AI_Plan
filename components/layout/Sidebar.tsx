@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 
 const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
@@ -67,7 +68,7 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
     <>
       {/* ── Desktop: panel de vidrio flotante ── */}
       <aside
-        className={`liquid-glass sticky top-3 z-20 m-3 hidden h-[calc(100vh-1.5rem)] shrink-0 flex-col gap-2 rounded-[28px] p-3 transition-[width] duration-300 md:flex ${
+        className={`liquid-glass sticky top-3 z-20 m-3 hidden h-[calc(100vh-1.5rem)] shrink-0 self-start flex-col gap-2 rounded-[28px] p-3 transition-[width] duration-300 md:flex ${
           collapsed ? "w-[84px]" : "w-[264px]"
         }`}
       >
@@ -139,6 +140,9 @@ export function Sidebar({ name, avatarColor }: { name: string; avatarColor: stri
           <Plus className="h-5 w-5 shrink-0" />
           {!collapsed && <span>Nueva tarea</span>}
         </button>
+
+        {/* Tema claro/oscuro */}
+        <ThemeToggle collapsed={collapsed} />
 
         {/* Salir */}
         <button

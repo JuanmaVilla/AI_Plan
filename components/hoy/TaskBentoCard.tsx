@@ -116,12 +116,14 @@ export function TaskBentoCard({
 
   const projectColor = task.project?.color ?? "#0cc0df";
 
-  const minH = size === "lg" ? "min-h-[200px]" : size === "sm" ? "min-h-[140px]" : "min-h-[168px]";
-  const titleSize = size === "lg" ? "text-xl" : "text-base";
+  const minH = size === "lg" ? "min-h-[220px]" : size === "sm" ? "min-h-[150px]" : "min-h-[184px]";
+  const titleSize =
+    size === "lg" ? "text-3xl" : size === "sm" ? "text-xl" : "text-2xl";
 
   return (
     <article
-      className={`card-soft group relative flex h-full flex-col gap-3 rounded-[26px] p-5 transition-all duration-300 hover:-translate-y-0.5 ${minH} ${
+      style={{ ["--proj" as string]: projectColor }}
+      className={`card-soft proj-glow group relative flex h-full flex-col gap-3 rounded-[26px] p-5 transition-all duration-300 hover:-translate-y-0.5 ${minH} ${
         done ? "opacity-55" : ""
       }`}
     >
@@ -145,7 +147,7 @@ export function TaskBentoCard({
 
       {/* Título: protagonista */}
       <h3
-        className={`flex-1 font-primary font-bold leading-snug ${titleSize} ${
+        className={`flex-1 font-primary font-black leading-tight tracking-[-0.02em] ${titleSize} ${
           done ? "text-fg-muted line-through" : "text-fg"
         }`}
       >

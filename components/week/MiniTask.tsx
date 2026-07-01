@@ -47,7 +47,7 @@ export function MiniTask({
         <div className="flex min-w-0 items-start gap-2">
           <DoneToggle done={done} onToggle={toggleDone} size={16} />
           <span
-            className={`font-primary text-sm font-bold leading-snug ${
+            className={`font-primary text-base font-black leading-tight tracking-[-0.01em] ${
               done ? "text-fg-muted line-through" : "text-fg"
             }`}
           >

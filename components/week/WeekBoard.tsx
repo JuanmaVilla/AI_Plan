@@ -20,12 +20,14 @@ import { BacklogDrawer } from "@/components/backlog/BacklogDrawer";
 
 export function WeekBoard({
   weekDays,
+  monthDays,
   today,
   initialTasks,
   members,
   currentUserId,
 }: {
   weekDays: string[];
+  monthDays: string[];
   today: string;
   initialTasks: TaskWithMeta[];
   members: Member[];
@@ -33,6 +35,9 @@ export function WeekBoard({
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [range, setRange] = useState<"7" | "30">("7");
+
+  const days = range === "7" ? weekDays : monthDays;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -108,22 +113,39 @@ export function WeekBoard({
             Semana
           </span>
           <h1 className="font-display text-4xl font-black text-fg" style={{ letterSpacing: "-0.03em" }}>
-            Tu semana
+            {range === "7" ? "Tu semana" : "Tus 30 días"}
           </h1>
         </div>
-        <button
-          type="button"
-          onClick={() => setDrawerOpen((o) => !o)}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-white/5 p-1">
+            {(["7", "30"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRange(r)}
+                aria-pressed={range === r}
+                className={`rounded-full px-3.5 py-1.5 font-body text-sm font-semibold transition-colors ${
+                  range === r ? "bg-white/12 text-fg" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {r === "7" ? "7 días" : "30 días"}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen((o) => !o)}
           className="flex items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-white/5 px-4 py-2.5 font-body text-sm font-semibold text-fg-secondary transition-colors hover:border-[var(--border-active)]"
         >
           <Inbox className="h-4 w-4" />
           Backlog
-          {backlog.length > 0 && (
-            <span className="rounded-full bg-[var(--accent-blue-dim)] px-2 text-xs text-accent-cyan">
-              {backlog.length}
-            </span>
-          )}
-        </button>
+            {backlog.length > 0 && (
+              <span className="rounded-full bg-[var(--accent-blue-dim)] px-2 text-xs text-accent-cyan">
+                {backlog.length}
+              </span>
+            )}
+          </button>
+        </div>
       </header>
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
@@ -133,7 +155,7 @@ export function WeekBoard({
               drawerOpen ? "lg:grid-cols-4 xl:grid-cols-7" : "lg:grid-cols-7"
             }`}
           >
-            {weekDays.map((day) => {
+            {days.map((day) => {
               const dayTasks = byDay(day);
               return (
                 <DayColumn

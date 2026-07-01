@@ -119,6 +119,11 @@ export async function archiveProject(projectId: string): Promise<void> {
   await supabase.from("projects").update({ archived: true }).eq("id", projectId);
 }
 
+export async function updateProjectColor(projectId: string, color: string): Promise<void> {
+  const supabase = await createClient();
+  await supabase.from("projects").update({ color }).eq("id", projectId);
+}
+
 /**
  * Devuelve el proyecto "General" del equipo; si no existe, lo crea.
  * Lo usa la vista Hoy para que el quick-add tenga dónde colgar.

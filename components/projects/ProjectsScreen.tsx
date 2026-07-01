@@ -1,7 +1,6 @@
 import { getMyTeam } from "@/lib/queries/teams";
 import { getProjectsWithStats, type ProjectType } from "@/lib/queries/projects";
-import { NewProjectDialog } from "@/components/projects/NewProjectDialog";
-import { ProjectCard } from "@/components/projects/ProjectCard";
+import { ProjectsWorkspace } from "@/components/projects/ProjectsWorkspace";
 
 const COPY: Record<ProjectType, { kicker: string; title: string; empty: string }> = {
   proyecto: {
@@ -21,33 +20,9 @@ export async function ProjectsScreen({ type }: { type: ProjectType }) {
   const projects = team ? await getProjectsWithStats(team.team_id, type) : [];
   const copy = COPY[type];
 
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-10">
-      <header className="flex items-end justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-            {copy.kicker}
-          </span>
-          <h1 className="font-display text-4xl font-black text-fg" style={{ letterSpacing: "-0.03em" }}>
-            {copy.title}
-          </h1>
-        </div>
-        <NewProjectDialog type={type} />
-      </header>
-
-      {projects.length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] px-6 py-12 text-center font-body text-fg-muted">
-          {copy.empty}
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {projects
-            .filter((p) => !(type === "proyecto" && p.name === "General" && p.taskCount === 0))
-            .map((p) => (
-              <ProjectCard key={p.id} project={p} />
-            ))}
-        </div>
-      )}
-    </div>
+  const visible = projects.filter(
+    (p) => !(type === "proyecto" && p.name === "General" && p.taskCount === 0)
   );
+
+  return <ProjectsWorkspace projects={visible} type={type} copy={copy} />;
 }

@@ -61,10 +61,16 @@
   font-weight: 900; font-style: normal; font-display: swap;
 }
 
+@font-face {
+  font-family: 'Young Serif';
+  src: url('/fonts/YoungSerif-Bold.otf') format('opentype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 /* ── Tokens de marca expuestos como utilidades Tailwind ──────── */
 @theme {
   /* Familias tipográficas */
-  --font-display: 'Unbounded', sans-serif;
+  --font-display: 'Young Serif', Georgia, serif;
   --font-primary: 'Aeonik', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
@@ -337,6 +343,142 @@ body::before {
   border-color: rgba(0, 212, 255, 0.45);
 }
 
+/* ── Tarjeta de proyecto con giro 3D (flip) ──────────────────────────────
+   Capas: vidrio (.glass-card) + glow del color del proyecto (--proj).
+   El frente es mínimo; el reverso muestra tareas y progreso. */
+.flip-card {
+  perspective: 1600px;
+  transition: height 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card.is-flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+/* Caras ancladas arriba: cada una mide lo que mide su contenido, así el
+   contenedor puede crecer cuando se da vuelta y tiene muchas tareas. */
+.flip-face {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  flex-direction: column;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
+.flip-face-back {
+  transform: rotateY(180deg);
+}
+/* Glow de color del proyecto: saturado al centro/arriba, difuso a los bordes. */
+.proj-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      125% 80% at 50% 8%,
+      color-mix(in srgb, var(--proj, #5b8def) 50%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      90% 60% at 80% 110%,
+      color-mix(in srgb, var(--proj, #5b8def) 28%, transparent),
+      transparent 60%
+    );
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+.flip-card:hover .proj-glow::after {
+  opacity: 1;
+}
+
+/* En Orbit Mode las cards flotan sin nada sólido detrás: fondo más opaco
+   para que no se vean tan transparentes (no afecta la vista normal). */
+.orbit-scene .glass-card {
+  background:
+    linear-gradient(
+      150deg,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.09) 46%,
+      rgba(255, 255, 255, 0.13)
+    ),
+    var(--color-elevated);
+}
+
+/* Elevación + brillo de color en hover (señal de "clickeable"). */
+.flip-card .flip-face {
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
+}
+.flip-card:hover:not(.is-flipped) .flip-face-front {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--proj, #5b8def) 55%, transparent);
+  box-shadow:
+    0 30px 56px -20px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 0 34px -6px color-mix(in srgb, var(--proj, #5b8def) 60%, transparent);
+}
+
+/* ── Botón cápsula glass (acción primaria) ───────────────────────────────
+   Cápsula de vidrio celeste suave, con gradiente claro, brillo especular
+   arriba, borde luminoso, glow difuso y volumen táctil. Texto/íconos blancos.
+   Estados: hover sube + brilla, active baja + presionado, disabled apagado. */
+.btn-glass {
+  position: relative;
+  isolation: isolate;
+  border-radius: 1rem;
+  color: #ffffff;
+  border: 1px solid transparent;
+  /* Mismo estilo que el botón "Nueva tarea" del sidebar: gradiente de marca
+     azul → cyan + sombra azul difusa. */
+  background: var(--brand-gradient);
+  box-shadow: 0 8px 24px rgba(0, 87, 255, 0.4);
+  text-shadow: 0 1px 2px rgba(8, 40, 120, 0.25);
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-in-out),
+    filter var(--duration-fast) var(--ease-in-out);
+}
+/* Brillo especular superior (reflejo de vidrio, muy sutil) */
+.btn-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0) 50%
+  );
+}
+.btn-glass:hover {
+  transform: scale(1.02);
+  box-shadow: 0 10px 28px rgba(0, 87, 255, 0.5);
+}
+.btn-glass:active {
+  transform: scale(0.99);
+  box-shadow: 0 4px 14px rgba(0, 87, 255, 0.35);
+}
+.btn-glass:disabled,
+.btn-glass[disabled],
+.btn-glass[data-disabled] {
+  opacity: 0.5;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(0, 87, 255, 0.25);
+}
+
 /* Título grande estilo grotesca pesada (referencia "Hello, I'm a Designer") */
 .display-heading {
   font-family: var(--font-primary);
@@ -421,6 +563,86 @@ body::before {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* ════════════════════════════════════════════════════════════
+   LIGHT MODE — se activa cuando <html> NO tiene la clase `dark`.
+   Redefine los tokens de marca (los shadcn ya son claros en :root).
+   ════════════════════════════════════════════════════════════ */
+html:not(.dark) {
+  color-scheme: light;
+
+  --color-base: #eef1f6;
+  --color-surface: #ffffff;
+  --color-elevated: #ffffff;
+  --color-overlay: #e6e9ef;
+
+  --color-fg: #171a21;
+  --color-fg-secondary: #333a46;
+  --color-fg-muted: #5c6675;
+  --color-fg-disabled: #a2abb8;
+
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.08);
+
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-2: 0 4px 16px rgba(2, 79, 206, 0.12);
+  --shadow-3: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* Glows de fondo más suaves sobre claro */
+html:not(.dark) body::before {
+  background:
+    radial-gradient(55% 45% at 12% -5%, rgba(2, 79, 206, 0.1), transparent 70%),
+    radial-gradient(45% 40% at 105% 105%, rgba(12, 192, 223, 0.08), transparent 70%);
+}
+
+/* Cards de vidrio en claro: blancas y limpias, con borde y sombra suave */
+html:not(.dark) .glass-card,
+html:not(.dark) .card-soft {
+  background: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.8) 46%,
+    rgba(255, 255, 255, 0.9)
+  );
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 18px 40px -22px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+html:not(.dark) .glass-card:hover,
+html:not(.dark) .card-soft:hover {
+  border-color: color-mix(in srgb, var(--proj, #0870ff) 45%, transparent);
+  box-shadow:
+    0 26px 52px -22px rgba(0, 0, 0, 0.32),
+    0 0 26px -8px color-mix(in srgb, var(--proj, #0870ff) 40%, transparent);
+}
+html:not(.dark) .orbit-scene .glass-card {
+  background: #ffffff;
+}
+
+/* Sidebar (liquid-glass) en claro */
+html:not(.dark) .liquid-glass {
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0.75) 42%,
+      rgba(255, 255, 255, 0.85)
+    ),
+    rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Superficies de inputs/pills que usaban blanco translúcido */
+html:not(.dark) .card-ghost {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 @layer base {

@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { getMyTeam } from "@/lib/queries/teams";
-import { createProject, archiveProject, type ProjectType } from "@/lib/queries/projects";
+import {
+  createProject,
+  archiveProject,
+  updateProjectColor,
+  type ProjectType,
+} from "@/lib/queries/projects";
 import { createTask } from "@/lib/queries/tasks";
 
 function revalidateProjects() {
@@ -15,6 +20,7 @@ export async function createProjectAction(input: {
   type: ProjectType;
   kpi: string;
   icon: string;
+  color?: string;
 }) {
   const name = input.name.trim();
   if (!name) return { ok: false as const, error: "Poné un nombre." };
@@ -28,6 +34,7 @@ export async function createProjectAction(input: {
     type: input.type,
     kpi: input.kpi,
     icon: input.icon,
+    color: input.color,
   });
   if (!project) return { ok: false as const, error: "No se pudo crear." };
 
@@ -59,4 +66,10 @@ export async function addBacklogTaskAction(projectId: string, title: string) {
 export async function archiveProjectAction(projectId: string) {
   await archiveProject(projectId);
   revalidateProjects();
+}
+
+export async function updateProjectColorAction(projectId: string, color: string) {
+  await updateProjectColor(projectId, color);
+  revalidateProjects();
+  return { ok: true as const };
 }
