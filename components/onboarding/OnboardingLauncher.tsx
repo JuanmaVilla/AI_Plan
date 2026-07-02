@@ -1,9 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { motion } from "motion/react";
 import { Sparkles } from "lucide-react";
-import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
+
+// El tour usa muchas animaciones (motion): se carga en diferido, solo cuando abre.
+const OnboardingTour = dynamic(
+  () => import("@/components/onboarding/OnboardingTour").then((m) => m.OnboardingTour),
+  { ssr: false }
+);
 
 const SEEN_KEY = "onboarding-tour-seen";
 
@@ -28,7 +34,8 @@ export function OnboardingLauncher() {
 
   return (
     <>
-      <OnboardingTour open={open} onClose={close} />
+      {/* Solo se monta (y carga su chunk) cuando el tour abre. */}
+      {open && <OnboardingTour open={open} onClose={close} />}
 
       {/* Burbuja para reabrir el tour (oculta mientras está abierto) */}
       {ready && !open && (

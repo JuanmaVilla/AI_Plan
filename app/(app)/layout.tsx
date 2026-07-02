@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { ensureUserHasTeam, getMyTeam, getMyTeams } from "@/lib/queries/teams";
 import { getCurrentUser, getCurrentProfile } from "@/lib/queries/auth";
 import { getViewScope } from "@/lib/queries/scope";
+import { maybeClaimInvites } from "@/lib/queries/invites";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { RealtimeRefresher } from "@/components/layout/RealtimeRefresher";
 import { OnboardingLauncher } from "@/components/onboarding/OnboardingLauncher";
@@ -16,20 +16,18 @@ export default async function AppLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  // Reclama invitaciones pendientes (por email) ANTES de leer los espacios,
-  // así el usuario entra ya dentro de los espacios a los que lo invitaron.
-  const supabase = await createClient();
-  await supabase.rpc("claim_pending_invites");
+  // Reclama invitaciones pendientes (por email), pero gateado: como mucho una
+  // vez cada 10 min por usuario. Debe correr ANTES de leer los espacios.
+  await maybeClaimInvites(user.id);
 
-  // Garantiza que el usuario tenga al menos un espacio propio.
-  await ensureUserHasTeam();
-
-  const [teams, active, profile, viewScope] = await Promise.all([
-    getMyTeams(),
-    getMyTeam(),
+  // ensureUserHasTeam y el perfil son independientes → en paralelo (1 round-trip).
+  // getMyTeams/getMyTeam reusan la caché por request que puebla ensureUserHasTeam.
+  const [, profile, viewScope] = await Promise.all([
+    ensureUserHasTeam(),
     getCurrentProfile(),
     getViewScope(),
   ]);
+  const [teams, active] = await Promise.all([getMyTeams(), getMyTeam()]);
   const name = profile?.full_name || user.email?.split("@")[0] || "yo";
   const avatarColor = profile?.avatar_color || "#0cc0df";
 
