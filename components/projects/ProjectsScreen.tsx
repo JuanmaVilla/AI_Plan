@@ -1,28 +1,23 @@
 import { getMyTeam } from "@/lib/queries/teams";
-import { getProjectsWithStats, type ProjectType } from "@/lib/queries/projects";
+import { isAdmin } from "@/lib/roles";
+import { getProjectsWithStats } from "@/lib/queries/projects";
+import { getMetas } from "@/lib/queries/metas";
 import { ProjectsWorkspace } from "@/components/projects/ProjectsWorkspace";
 
-const COPY: Record<ProjectType, { kicker: string; title: string; empty: string }> = {
-  proyecto: {
-    kicker: "Proyectos",
-    title: "Tus proyectos",
-    empty: "Todavía no hay proyectos. Creá el primero.",
-  },
-  objetivo: {
-    kicker: "Objetivos",
-    title: "Tus objetivos",
-    empty: "Todavía no hay objetivos. Definí el primero.",
-  },
-};
-
-export async function ProjectsScreen({ type }: { type: ProjectType }) {
+export async function ProjectsScreen() {
   const team = await getMyTeam();
-  const projects = team ? await getProjectsWithStats(team.team_id, type) : [];
-  const copy = COPY[type];
+  if (!team) return null;
 
-  const visible = projects.filter(
-    (p) => !(type === "proyecto" && p.name === "General" && p.taskCount === 0)
+  const [projects, metas] = await Promise.all([
+    getProjectsWithStats(team.team_id),
+    getMetas(team.team_id),
+  ]);
+
+  return (
+    <ProjectsWorkspace
+      projects={projects}
+      metas={metas.map((m) => ({ id: m.id, name: m.name, icon: m.icon }))}
+      canManage={isAdmin(team.role)}
+    />
   );
-
-  return <ProjectsWorkspace projects={visible} type={type} copy={copy} />;
 }

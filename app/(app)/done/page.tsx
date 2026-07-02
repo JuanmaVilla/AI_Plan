@@ -1,10 +1,13 @@
 import { getMyTeam } from "@/lib/queries/teams";
 import { getDoneTasks } from "@/lib/queries/tasks";
+import { getCurrentUser } from "@/lib/queries/auth";
+import { getViewScope } from "@/lib/queries/scope";
 import { DoneList } from "@/components/tasks/DoneList";
 
 export default async function DonePage() {
-  const team = await getMyTeam();
-  const tasks = team ? await getDoneTasks(team.team_id) : [];
+  const [team, user, scope] = await Promise.all([getMyTeam(), getCurrentUser(), getViewScope()]);
+  const tasks =
+    team && user ? await getDoneTasks(team.team_id, scope === "mine" ? user.id : undefined) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-10">

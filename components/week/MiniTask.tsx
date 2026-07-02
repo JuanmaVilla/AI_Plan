@@ -11,7 +11,8 @@ export function MiniTask({
   onCycleAssign,
 }: {
   task: TaskWithMeta;
-  onCycleAssign: (task: TaskWithMeta) => void;
+  /** Si no se pasa (empleado), el avatar no es clicable: no puede reasignar. */
+  onCycleAssign?: (task: TaskWithMeta) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -57,9 +58,10 @@ export function MiniTask({
         <button
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onCycleAssign(task)}
+          onClick={() => onCycleAssign?.(task)}
+          disabled={!onCycleAssign}
           aria-label="Asignar responsable"
-          className="shrink-0"
+          className={`shrink-0 ${onCycleAssign ? "" : "cursor-default"}`}
         >
           {a ? (
             <span

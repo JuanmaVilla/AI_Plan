@@ -14,7 +14,7 @@ export function BacklogDrawer({
   open: boolean;
   onClose: () => void;
   tasks: TaskWithMeta[];
-  onCycleAssign: (task: TaskWithMeta) => void;
+  onCycleAssign?: (task: TaskWithMeta) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "backlog" });
 

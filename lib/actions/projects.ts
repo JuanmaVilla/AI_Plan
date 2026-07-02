@@ -2,39 +2,38 @@
 
 import { revalidatePath } from "next/cache";
 import { getMyTeam } from "@/lib/queries/teams";
+import { isAdmin } from "@/lib/roles";
 import {
   createProject,
   archiveProject,
   updateProjectColor,
-  type ProjectType,
+  updateProjectMeta,
 } from "@/lib/queries/projects";
-import { createTask } from "@/lib/queries/tasks";
 
 function revalidateProjects() {
   revalidatePath("/proyectos");
-  revalidatePath("/objetivos");
+  revalidatePath("/metas");
 }
 
 export async function createProjectAction(input: {
   name: string;
-  type: ProjectType;
-  kpi: string;
-  icon: string;
+  icon?: string;
   color?: string;
+  companyObjectiveId?: string | null;
 }) {
   const name = input.name.trim();
   if (!name) return { ok: false as const, error: "Poné un nombre." };
 
   const team = await getMyTeam();
   if (!team) return { ok: false as const, error: "No tenés equipo." };
+  if (!isAdmin(team.role)) return { ok: false as const, error: "Solo un admin puede crear proyectos." };
 
   const project = await createProject({
     teamId: team.team_id,
     name,
-    type: input.type,
-    kpi: input.kpi,
     icon: input.icon,
     color: input.color,
+    companyObjectiveId: input.companyObjectiveId ?? null,
   });
   if (!project) return { ok: false as const, error: "No se pudo crear." };
 
@@ -42,34 +41,29 @@ export async function createProjectAction(input: {
   return { ok: true as const, id: project.id, name: project.name, icon: project.icon };
 }
 
-/** Agrega una tarea al backlog del proyecto (sin día, sin responsable). */
-export async function addBacklogTaskAction(projectId: string, title: string) {
-  const clean = title.trim();
-  if (!clean) return { ok: false as const, error: "Escribí algo." };
-
+export async function archiveProjectAction(projectId: string) {
   const team = await getMyTeam();
-  if (!team) return { ok: false as const, error: "No tenés equipo." };
+  if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
+  await archiveProject(projectId);
+  revalidateProjects();
+  revalidatePath(`/proyectos/${projectId}`);
+  return { ok: true as const };
+}
 
-  const task = await createTask({
-    teamId: team.team_id,
-    projectId,
-    title: clean,
-    assigneeId: null,
-    scheduledDate: null,
-  });
-  if (!task) return { ok: false as const, error: "No se pudo agregar." };
-
+export async function updateProjectColorAction(projectId: string, color: string) {
+  const team = await getMyTeam();
+  if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
+  await updateProjectColor(projectId, color);
   revalidateProjects();
   return { ok: true as const };
 }
 
-export async function archiveProjectAction(projectId: string) {
-  await archiveProject(projectId);
+/** Vincula (o desvincula con null) el proyecto a una Meta de empresa. */
+export async function setProjectMetaAction(projectId: string, companyObjectiveId: string | null) {
+  const team = await getMyTeam();
+  if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
+  await updateProjectMeta(projectId, companyObjectiveId);
   revalidateProjects();
-}
-
-export async function updateProjectColorAction(projectId: string, color: string) {
-  await updateProjectColor(projectId, color);
-  revalidateProjects();
+  revalidatePath(`/proyectos/${projectId}`);
   return { ok: true as const };
 }

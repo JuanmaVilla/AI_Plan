@@ -60,7 +60,12 @@ export async function startSession(
 export async function getTodayWorkStats(
   userId: string,
   teamId: string
-): Promise<{ closedMinutes: number; blocks: number; activeSession: TimeSession | null }> {
+): Promise<{
+  closedMinutes: number;
+  blocks: number;
+  activeSession: TimeSession | null;
+  activeTaskTitle: string | null;
+}> {
   const supabase = await createClient();
   const today = todayISO();
 
@@ -76,9 +81,68 @@ export async function getTodayWorkStats(
     getActiveSession(userId),
   ]);
 
+  // Si el reloj está "pegado" a una tarea, traer su título para mostrarlo.
+  let activeTaskTitle: string | null = null;
+  if (activeSession?.task_id) {
+    const { data: task } = await supabase
+      .from("tasks")
+      .select("title")
+      .eq("id", activeSession.task_id)
+      .maybeSingle();
+    activeTaskTitle = task?.title ?? null;
+  }
+
   const closedMinutes = (closed ?? []).reduce((s, r) => s + (r.minutes ?? 0), 0);
   const blocks = (closed ?? []).length;
-  return { closedMinutes, blocks, activeSession };
+  return { closedMinutes, blocks, activeSession, activeTaskTitle };
+}
+
+/** Total histórico de minutos por tarea (todas las sesiones cerradas, todo el equipo). */
+export async function getTasksTotalMinutes(
+  teamId: string,
+  taskIds: string[]
+): Promise<Record<string, number>> {
+  if (taskIds.length === 0) return {};
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("time_sessions")
+    .select("task_id, minutes")
+    .eq("team_id", teamId)
+    .in("task_id", taskIds)
+    .not("ended_at", "is", null);
+
+  const map: Record<string, number> = {};
+  for (const row of data ?? []) {
+    if (row.task_id) {
+      map[row.task_id] = (map[row.task_id] ?? 0) + (row.minutes ?? 0);
+    }
+  }
+  return map;
+}
+
+/** Minutos trabajados por persona y por día, en un rango 'yyyy-MM-dd'. */
+export async function getDailyWorkByMember(
+  teamId: string,
+  start: string,
+  end: string
+): Promise<Record<string, Record<string, number>>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("time_sessions")
+    .select("user_id, started_at, minutes")
+    .eq("team_id", teamId)
+    .not("ended_at", "is", null)
+    .gte("started_at", start + "T00:00:00")
+    .lte("started_at", end + "T23:59:59");
+
+  // { user_id: { 'yyyy-MM-dd': minutos } }
+  const map: Record<string, Record<string, number>> = {};
+  for (const row of data ?? []) {
+    const day = row.started_at.slice(0, 10);
+    (map[row.user_id] ??= {})[day] =
+      (map[row.user_id]?.[day] ?? 0) + (row.minutes ?? 0);
+  }
+  return map;
 }
 
 /** Cierra sesión: calcula minutos y guarda ended_at. */

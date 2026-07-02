@@ -1,33 +1,32 @@
 import { getMyTeam } from "@/lib/queries/teams";
 import { getCurrentUser } from "@/lib/queries/auth";
+import { getViewScope } from "@/lib/queries/scope";
+import { isAdmin } from "@/lib/roles";
 import { getNewsEntries } from "@/lib/queries/news";
 import { getProjects } from "@/lib/queries/projects";
 import { getTodayWorkStats } from "@/lib/queries/time";
 import { humanDay, todayISO } from "@/lib/dates";
 import { WorkTimer } from "@/components/hoy/WorkTimer";
-import { NewsForm } from "@/components/novedades/NewsForm";
+import { NewsForm, type NewsProject } from "@/components/novedades/NewsForm";
 import { NewsFeed } from "@/components/novedades/NewsFeed";
-import type { PickProject } from "@/lib/actions/tasks";
 
 export default async function NovedadesPage() {
-  const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
+  const [team, user, scope] = await Promise.all([getMyTeam(), getCurrentUser(), getViewScope()]);
   if (!team) return null;
 
-  const [entries, rawProjects] = await Promise.all([
-    getNewsEntries(team.team_id),
+  // Novedades, proyectos y estadísticas del cronómetro en paralelo.
+  const [entries, rawProjects, workStats] = await Promise.all([
+    getNewsEntries(team.team_id, scope === "mine" && user ? user.id : undefined),
     getProjects(team.team_id),
+    user
+      ? getTodayWorkStats(user.id, team.team_id)
+      : Promise.resolve({ closedMinutes: 0, blocks: 0, activeSession: null }),
   ]);
 
-  const workStats =
-    user && team
-      ? await getTodayWorkStats(user.id, team.team_id)
-      : { closedMinutes: 0, blocks: 0, activeSession: null };
-
-  const projects: PickProject[] = rawProjects.map((p) => ({
+  const projects: NewsProject[] = rawProjects.map((p) => ({
     id: p.id,
     name: p.name,
     icon: p.icon,
-    type: p.type,
   }));
 
   return (
@@ -55,7 +54,11 @@ export default async function NovedadesPage() {
 
       <NewsForm projects={projects} />
 
-      <NewsFeed entries={entries} />
+      <NewsFeed
+        entries={entries}
+        currentUserId={user?.id ?? ""}
+        canModerate={isAdmin(team.role)}
+      />
     </div>
   );
 }

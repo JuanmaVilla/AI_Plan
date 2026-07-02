@@ -8,6 +8,7 @@ import { startSession, stopSession, getActiveSession } from "@/lib/queries/time"
 function revalidateAll() {
   revalidatePath("/hoy");
   revalidatePath("/semana");
+  revalidatePath("/tiempos");
 }
 
 /** Inicia el cronómetro de trabajo del día (sin tarea). */

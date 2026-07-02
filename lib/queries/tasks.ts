@@ -5,10 +5,38 @@ import { getCurrentUser } from "@/lib/queries/auth";
 
 export type Task = Tables<"tasks">;
 
-/** Tarea con datos mínimos del proyecto del que cuelga (para mostrar contexto). */
-export type TaskWithProject = Task & {
-  project: Pick<Tables<"projects">, "name" | "color" | "icon"> | null;
+export type TaskProjectLite = Pick<Tables<"projects">, "name" | "color" | "icon">;
+export type TaskObjectiveLite = {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  project: TaskProjectLite | null;
 };
+
+/**
+ * Tarea con su objetivo (y, a través de él, el proyecto). `project` se mantiene
+ * como atajo = objetivo.proyecto, para las tarjetas que muestran el contexto.
+ */
+export type TaskWithProject = Task & {
+  objective: TaskObjectiveLite | null;
+  project: TaskProjectLite | null;
+};
+
+export type TaskWithMeta = TaskWithProject & {
+  assignee: Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color"> | null;
+};
+
+const SELECT =
+  "*, objective:objectives!tasks_objective_id_fkey(id, name, color, icon, project:projects!objectives_project_id_fkey(name, color, icon)), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)";
+
+/** Aplana objetivo.proyecto en un `project` de conveniencia. */
+function shape(rows: unknown[]): TaskWithMeta[] {
+  return (rows ?? []).map((raw) => {
+    const r = raw as TaskWithMeta;
+    return { ...r, project: r.objective?.project ?? null };
+  });
+}
 
 /**
  * Tareas de HOY del usuario logueado en su equipo.
@@ -21,72 +49,70 @@ export async function getTodayTasks(teamId: string): Promise<TaskWithMeta[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("tasks")
-    .select(
-      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
-    )
+    .select(SELECT)
     .eq("team_id", teamId)
     .eq("assignee_id", user.id)
     .eq("scheduled_date", todayISO())
     .order("created_at", { ascending: true });
 
-  return (data as TaskWithMeta[]) ?? [];
+  return shape(data ?? []);
 }
 
 /**
- * Tareas de la semana (rango de fechas dado) del equipo, de todos los miembros.
- * Incluye proyecto y responsable para pintar avatar.
+ * Tareas de la semana (rango de fechas dado) del equipo. Filtra por responsable
+ * si se pasa `assigneeId` (para el modo "solo lo mío").
  */
-export type TaskWithMeta = TaskWithProject & {
-  assignee: Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color"> | null;
-};
-
 export async function getWeekTasks(
   teamId: string,
   start: string,
-  end: string
+  end: string,
+  assigneeId?: string
 ): Promise<TaskWithMeta[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("tasks")
-    .select(
-      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
-    )
+    .select(SELECT)
     .eq("team_id", teamId)
     .gte("scheduled_date", start)
-    .lte("scheduled_date", end)
-    .order("created_at", { ascending: true });
+    .lte("scheduled_date", end);
+  if (assigneeId) q = q.eq("assignee_id", assigneeId);
+  const { data } = await q.order("created_at", { ascending: true });
 
-  return (data as TaskWithMeta[]) ?? [];
+  return shape(data ?? []);
 }
 
 /** Tareas en backlog del equipo (scheduled_date IS NULL). */
-export async function getBacklogTasks(teamId: string): Promise<TaskWithMeta[]> {
+export async function getBacklogTasks(
+  teamId: string,
+  assigneeId?: string
+): Promise<TaskWithMeta[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("tasks")
-    .select(
-      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
-    )
+    .select(SELECT)
     .eq("team_id", teamId)
-    .is("scheduled_date", null)
-    .order("created_at", { ascending: true });
+    .is("scheduled_date", null);
+  if (assigneeId) q = q.eq("assignee_id", assigneeId);
+  const { data } = await q.order("created_at", { ascending: true });
 
-  return (data as TaskWithMeta[]) ?? [];
+  return shape(data ?? []);
 }
 
 /** Tareas terminadas del equipo (done = true), más recientes primero. */
-export async function getDoneTasks(teamId: string): Promise<TaskWithMeta[]> {
+export async function getDoneTasks(
+  teamId: string,
+  assigneeId?: string
+): Promise<TaskWithMeta[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("tasks")
-    .select(
-      "*, project:projects(name, color, icon), assignee:profiles!tasks_assignee_id_fkey(id, full_name, avatar_color)"
-    )
+    .select(SELECT)
     .eq("team_id", teamId)
-    .eq("done", true)
-    .order("created_at", { ascending: false });
+    .eq("done", true);
+  if (assigneeId) q = q.eq("assignee_id", assigneeId);
+  const { data } = await q.order("created_at", { ascending: false });
 
-  return (data as TaskWithMeta[]) ?? [];
+  return shape(data ?? []);
 }
 
 /** Reagenda una tarea: a un día concreto ('yyyy-MM-dd') o al backlog (null). */
@@ -109,7 +135,7 @@ export async function updateTaskAssignee(
 
 export type CreateTaskInput = {
   teamId: string;
-  projectId: string;
+  objectiveId: string;
   title: string;
   /** undefined = a quien la crea; null = sin asignar (backlog). */
   assigneeId?: string | null;
@@ -126,7 +152,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task | null> {
     .from("tasks")
     .insert({
       team_id: input.teamId,
-      project_id: input.projectId,
+      objective_id: input.objectiveId,
       title: input.title.trim(),
       assignee_id: input.assigneeId === undefined ? user.id : input.assigneeId,
       scheduled_date:

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import type { ProjectWithStats, ProjectType } from "@/lib/queries/projects";
-import { NewProjectDialog } from "@/components/projects/NewProjectDialog";
+import type { ProjectWithStats } from "@/lib/queries/projects";
+import { NewProjectDialog, type MetaOption } from "@/components/projects/NewProjectDialog";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { OrbitView } from "@/components/projects/OrbitView";
 
@@ -11,17 +11,17 @@ type View = "normal" | "orbit";
 
 export function ProjectsWorkspace({
   projects,
-  type,
-  copy,
+  metas,
+  canManage,
 }: {
   projects: ProjectWithStats[];
-  type: ProjectType;
-  copy: { kicker: string; title: string; empty: string };
+  metas: MetaOption[];
+  /** Solo admin puede crear proyectos. */
+  canManage: boolean;
 }) {
   const [view, setView] = useState<View>("normal");
   const reduce = useReducedMotion();
 
-  // Recordar la vista elegida.
   useEffect(() => {
     const saved = localStorage.getItem("projects-view");
     if (saved === "orbit" || saved === "normal") setView(saved);
@@ -46,38 +46,49 @@ export function ProjectsWorkspace({
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-            {copy.kicker}
+            Proyectos
           </span>
           <h1 className="font-display text-4xl font-black text-fg" style={{ letterSpacing: "-0.03em" }}>
-            {copy.title}
+            Tus proyectos
           </h1>
+          <p className="font-body text-sm text-fg-muted">
+            Abrí un proyecto para definir sus objetivos (con KPI) y de ahí salen las tareas.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <ViewToggle view={view} onChange={changeView} />
-          <NewProjectDialog type={type} />
+          {projects.length > 0 && <ViewToggle view={view} onChange={changeView} />}
+          {canManage && <NewProjectDialog metas={metas} />}
         </div>
       </header>
 
       {projects.length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--border-default)] px-6 py-12 text-center font-body text-fg-muted">
-          {copy.empty}
+        <div className="flex flex-col items-center gap-3 rounded-[20px] border border-dashed border-[var(--border-default)] px-8 py-16 text-center">
+          <span className="text-4xl">📁</span>
+          <p className="font-body text-base font-semibold text-fg-secondary">
+            Todavía no hay proyectos
+          </p>
+          <p className="font-body text-sm text-fg-muted">
+            {canManage
+              ? "Creá tu primer proyecto para empezar a organizar objetivos y tareas."
+              : "Cuando un admin cree proyectos, aparecerán acá."}
+          </p>
         </div>
+      ) : view === "normal" ? (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key="normal" {...fade}>
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {projects.map((p) => (
+                <ProjectCard key={p.id} project={p} canManage={canManage} />
+              ))}
+            </div>
+          </motion.div>
+        </AnimatePresence>
       ) : (
         <AnimatePresence mode="wait" initial={false}>
-          {view === "normal" ? (
-            <motion.div key="normal" {...fade}>
-              <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {projects.map((p) => (
-                  <ProjectCard key={p.id} project={p} />
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div key="orbit" {...fade}>
-              <OrbitView projects={projects} />
-            </motion.div>
-          )}
+          <motion.div key="orbit" {...fade}>
+            <OrbitView projects={projects} />
+          </motion.div>
         </AnimatePresence>
       )}
     </div>

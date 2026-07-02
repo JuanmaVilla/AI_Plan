@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { createNewsAction } from "@/app/(app)/novedades/actions";
-import type { PickProject } from "@/lib/actions/tasks";
 import { todayISO } from "@/lib/dates";
+
+export type NewsProject = { id: string; name: string; icon: string };
 
 const STEPS = [
   { key: "project", label: "¿En qué proyecto trabajaste hoy?", optional: true },
@@ -13,7 +14,7 @@ const STEPS = [
   { key: "next_steps", label: "¿Cuáles son los próximos pasos?", optional: true },
 ] as const;
 
-export function NewsForm({ projects }: { projects: PickProject[] }) {
+export function NewsForm({ projects }: { projects: NewsProject[] }) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [projectId, setProjectId] = useState<string>("");

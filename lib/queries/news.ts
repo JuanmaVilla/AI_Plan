@@ -10,14 +10,19 @@ export type NewsEntryWithMeta = NewsEntry & {
 };
 
 /** Novedades del equipo, agrupadas por fecha descendente. */
-export async function getNewsEntries(teamId: string): Promise<NewsEntryWithMeta[]> {
+export async function getNewsEntries(
+  teamId: string,
+  authorId?: string
+): Promise<NewsEntryWithMeta[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  let q = supabase
     .from("news_entries")
     .select(
       "*, author:profiles!news_entries_author_id_fkey(id, full_name, avatar_color), project:projects(name, icon, color)"
     )
-    .eq("team_id", teamId)
+    .eq("team_id", teamId);
+  if (authorId) q = q.eq("author_id", authorId);
+  const { data } = await q
     .order("for_date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(60);

@@ -11,7 +11,9 @@ export function OrbitMini({ project }: { project: ProjectWithStats }) {
       <span className="text-4xl">{project.icon}</span>
       <div className="flex flex-col gap-1">
         <span className="font-primary text-lg font-bold text-fg">{project.name}</span>
-        {project.kpi && <span className="font-body text-xs text-fg-muted">KPIs: {project.kpi}</span>}
+        <span className="font-body text-xs text-fg-muted">
+          {project.objectiveCount} obj · {project.taskCount} tareas
+        </span>
       </div>
       <div className="flex w-32 flex-col gap-1">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">

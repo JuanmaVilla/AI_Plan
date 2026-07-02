@@ -26,7 +26,7 @@ function Avatar({ name, color }: { name: string; color: string }) {
   );
 }
 
-function EntryCard({ entry }: { entry: NewsEntryWithMeta }) {
+function EntryCard({ entry, canDelete }: { entry: NewsEntryWithMeta; canDelete: boolean }) {
   const [expanded, setExpanded] = useState(true);
   const [pending, startTransition] = useTransition();
 
@@ -73,15 +73,17 @@ function EntryCard({ entry }: { entry: NewsEntryWithMeta }) {
               <ChevronDown className="h-4 w-4" />
             )}
           </button>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={pending}
-            className="rounded-lg p-1 text-fg-disabled transition-colors hover:text-[var(--color-error)] disabled:opacity-40"
-            aria-label="Borrar novedad"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              className="rounded-lg p-1 text-fg-disabled transition-colors hover:text-[var(--color-error)] disabled:opacity-40"
+              aria-label="Borrar novedad"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -126,7 +128,16 @@ function EntryCard({ entry }: { entry: NewsEntryWithMeta }) {
   );
 }
 
-export function NewsFeed({ entries }: { entries: NewsEntryWithMeta[] }) {
+export function NewsFeed({
+  entries,
+  currentUserId,
+  canModerate,
+}: {
+  entries: NewsEntryWithMeta[];
+  currentUserId: string;
+  /** Admin: puede borrar novedades de cualquiera. */
+  canModerate: boolean;
+}) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-[20px] border border-dashed border-[var(--border-default)] py-12 text-center">
@@ -160,7 +171,11 @@ export function NewsFeed({ entries }: { entries: NewsEntryWithMeta[] }) {
             </span>
           </div>
           {dayEntries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} />
+            <EntryCard
+              key={entry.id}
+              entry={entry}
+              canDelete={canModerate || entry.author.id === currentUserId}
+            />
           ))}
         </section>
       ))}

@@ -12,65 +12,39 @@
 /* ── Fonts ─────────────────────────────────────────────────── */
 @font-face {
   font-family: 'Aeonik';
-  src: url('/fonts/AeonikTRIAL-Light.otf') format('opentype');
+  src: url('/fonts/AeonikTRIAL-Light.woff2') format('woff2');
   font-weight: 300; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Aeonik';
-  src: url('/fonts/AeonikTRIAL-Regular.otf') format('opentype');
+  src: url('/fonts/AeonikTRIAL-Regular.woff2') format('woff2');
   font-weight: 400; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Aeonik';
-  src: url('/fonts/AeonikTRIAL-Bold.otf') format('opentype');
+  src: url('/fonts/AeonikTRIAL-Bold.woff2') format('woff2');
   font-weight: 700; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'DM Sans';
-  src: url('/fonts/DMSans-Light.ttf') format('truetype');
+  src: url('/fonts/DMSans-Light.woff2') format('woff2');
   font-weight: 300; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'DM Sans';
-  src: url('/fonts/DMSans-Bold.ttf') format('truetype');
+  src: url('/fonts/DMSans-Bold.woff2') format('woff2');
   font-weight: 700; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'DM Sans';
-  src: url('/fonts/DMSans-ExtraBold.ttf') format('truetype');
+  src: url('/fonts/DMSans-ExtraBold.woff2') format('woff2');
   font-weight: 800; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Unbounded';
-  src: url('/fonts/Unbounded-Regular.ttf') format('truetype');
-  font-weight: 400; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Unbounded';
-  src: url('/fonts/Unbounded-Bold.ttf') format('truetype');
-  font-weight: 700; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Unbounded';
-  src: url('/fonts/Unbounded-ExtraBold.ttf') format('truetype');
-  font-weight: 800; font-style: normal; font-display: swap;
-}
-@font-face {
-  font-family: 'Unbounded';
-  src: url('/fonts/Unbounded-Black.ttf') format('truetype');
-  font-weight: 900; font-style: normal; font-display: swap;
-}
-
-@font-face {
-  font-family: 'Young Serif';
-  src: url('/fonts/YoungSerif-Bold.otf') format('opentype');
-  font-weight: 700; font-style: normal; font-display: swap;
 }
 
 /* ── Tokens de marca expuestos como utilidades Tailwind ──────── */
 @theme {
   /* Familias tipográficas */
-  --font-display: 'Young Serif', Georgia, serif;
+  --font-display: 'Aeonik', sans-serif;
   --font-primary: 'Aeonik', sans-serif;
   --font-body: 'DM Sans', sans-serif;
 
@@ -488,8 +462,8 @@ body::before {
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: var(--font-sans);
+  --font-heading: 'Aeonik', sans-serif;
+  --font-sans: 'DM Sans', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

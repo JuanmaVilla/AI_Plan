@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_objectives: {
+        Row: {
+          archived: boolean
+          color: string
+          created_at: string
+          created_by: string
+          icon: string
+          id: string
+          kpi: string
+          name: string
+          target_date: string | null
+          team_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          created_by: string
+          icon?: string
+          id?: string
+          kpi?: string
+          name: string
+          target_date?: string | null
+          team_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string
+          icon?: string
+          id?: string
+          kpi?: string
+          name?: string
+          target_date?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_objectives_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_objectives_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invites: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          role: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          invited_by: string
+          role?: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invites_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       news_entries: {
         Row: {
           advances: string[]
@@ -72,6 +168,70 @@ export type Database = {
           },
         ]
       }
+      objectives: {
+        Row: {
+          archived: boolean
+          color: string
+          created_at: string
+          created_by: string
+          icon: string
+          id: string
+          kpi: string
+          name: string
+          project_id: string
+          target_date: string | null
+          team_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          created_by: string
+          icon?: string
+          id?: string
+          kpi?: string
+          name: string
+          project_id: string
+          target_date?: string | null
+          team_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string
+          icon?: string
+          id?: string
+          kpi?: string
+          name?: string
+          project_id?: string
+          target_date?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objectives_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objectives_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "objectives_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_color: string
@@ -97,40 +257,44 @@ export type Database = {
         Row: {
           archived: boolean
           color: string
+          company_objective_id: string | null
           created_at: string
           created_by: string
           icon: string
           id: string
-          kpi: string
           name: string
           team_id: string
-          type: string
         }
         Insert: {
           archived?: boolean
           color?: string
+          company_objective_id?: string | null
           created_at?: string
           created_by: string
           icon?: string
           id?: string
-          kpi?: string
           name: string
           team_id: string
-          type?: string
         }
         Update: {
           archived?: boolean
           color?: string
+          company_objective_id?: string | null
           created_at?: string
           created_by?: string
           icon?: string
           id?: string
-          kpi?: string
           name?: string
           team_id?: string
-          type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "projects_company_objective_id_fkey"
+            columns: ["company_objective_id"]
+            isOneToOne: false
+            referencedRelation: "company_objectives"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "projects_created_by_fkey"
             columns: ["created_by"]
@@ -210,8 +374,8 @@ export type Database = {
           done: boolean
           id: string
           note: string
+          objective_id: string
           progress: number
-          project_id: string
           scheduled_date: string | null
           team_id: string
           title: string
@@ -223,8 +387,8 @@ export type Database = {
           done?: boolean
           id?: string
           note?: string
+          objective_id: string
           progress?: number
-          project_id: string
           scheduled_date?: string | null
           team_id: string
           title: string
@@ -236,8 +400,8 @@ export type Database = {
           done?: boolean
           id?: string
           note?: string
+          objective_id?: string
           progress?: number
-          project_id?: string
           scheduled_date?: string | null
           team_id?: string
           title?: string
@@ -258,10 +422,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "tasks_objective_id_fkey"
+            columns: ["objective_id"]
             isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "objectives"
             referencedColumns: ["id"]
           },
           {
@@ -392,11 +556,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_pending_invites: { Args: Record<PropertyKey, never>; Returns: number }
       create_team_for_current_user: {
         Args: { team_name: string }
         Returns: string
       }
+      create_workspace: { Args: { workspace_name: string }; Returns: string }
+      invite_member: {
+        Args: { invite_email: string; invite_role: string; t: string }
+        Returns: string
+      }
+      is_team_admin: { Args: { t: string }; Returns: boolean }
       is_team_member: { Args: { t: string }; Returns: boolean }
+      remove_member: { Args: { t: string; target: string }; Returns: undefined }
+      set_member_role: {
+        Args: { new_role: string; t: string; target: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

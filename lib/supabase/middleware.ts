@@ -33,22 +33,24 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // IMPORTANTE: no meter lógica entre createServerClient y getUser().
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // IMPORTANTE: no meter lógica entre createServerClient y getClaims().
+  // getClaims() verifica el JWT localmente (con claves asimétricas) → sin
+  // viaje de red a Supabase en cada navegación. getClaims también refresca
+  // el token si hace falta, igual que getUser.
+  const { data } = await supabase.auth.getClaims();
+  const isLoggedIn = !!data?.claims?.sub;
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  if (!user && !isPublic) {
+  if (!isLoggedIn && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
   // Si ya hay sesión y va a /login → mandarlo a Hoy.
-  if (user && pathname.startsWith("/login")) {
+  if (isLoggedIn && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     url.pathname = "/hoy";
     return NextResponse.redirect(url);

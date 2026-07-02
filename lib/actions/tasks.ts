@@ -3,40 +3,46 @@
 import { revalidatePath } from "next/cache";
 import { getMyTeam } from "@/lib/queries/teams";
 import { getCurrentUser } from "@/lib/queries/auth";
-import { getProjects } from "@/lib/queries/projects";
+import { getObjectivesForPicker } from "@/lib/queries/objectives";
 import { createTask, updateTaskDone } from "@/lib/queries/tasks";
 
-export type PickProject = { id: string; name: string; type: string; icon: string };
+/** Objetivo para el selector de nueva tarea (con su proyecto). */
+export type PickObjective = {
+  id: string;
+  name: string;
+  icon: string;
+  project_id: string;
+  project_name: string;
+};
 
 function revalidateAll() {
   revalidatePath("/hoy");
   revalidatePath("/semana");
   revalidatePath("/backlog");
   revalidatePath("/proyectos");
-  revalidatePath("/objetivos");
+  revalidatePath("/metas");
   revalidatePath("/done");
 }
 
-/** Lista proyectos y objetivos del equipo para el selector de nueva tarea. */
-export async function listProjectsAction(): Promise<PickProject[]> {
+/** Lista los objetivos del equipo (con su proyecto) para elegir dónde cuelga la tarea. */
+export async function listObjectivesAction(): Promise<PickObjective[]> {
   const team = await getMyTeam();
   if (!team) return [];
-  const projects = await getProjects(team.team_id);
-  return projects.map((p) => ({ id: p.id, name: p.name, type: p.type, icon: p.icon }));
+  return getObjectivesForPicker(team.team_id);
 }
 
 /**
- * Crea una tarea en un proyecto/objetivo (obligatorio).
+ * Crea una tarea dentro de un objetivo (obligatorio: jerarquía estricta).
  * scheduledDate null = Backlog; 'yyyy-MM-dd' = ese día (y se auto-asigna a mí).
  */
 export async function createTaskAction(input: {
   title: string;
-  projectId: string;
+  objectiveId: string;
   scheduledDate: string | null;
 }) {
   const title = input.title.trim();
   if (!title) return { ok: false as const, error: "Escribí la tarea." };
-  if (!input.projectId) return { ok: false as const, error: "Elegí un proyecto u objetivo." };
+  if (!input.objectiveId) return { ok: false as const, error: "Elegí un objetivo." };
 
   const team = await getMyTeam();
   if (!team) return { ok: false as const, error: "No tenés equipo." };
@@ -47,7 +53,7 @@ export async function createTaskAction(input: {
 
   const task = await createTask({
     teamId: team.team_id,
-    projectId: input.projectId,
+    objectiveId: input.objectiveId,
     title,
     assigneeId,
     scheduledDate: input.scheduledDate,

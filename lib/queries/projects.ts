@@ -3,93 +3,94 @@ import type { Tables } from "@/lib/types";
 import { getCurrentUser } from "@/lib/queries/auth";
 
 export type Project = Tables<"projects">;
-export type ProjectType = "proyecto" | "objetivo";
 
-export type ProjectTaskLite = {
-  id: string;
-  title: string;
-  done: boolean;
-  progress: number;
-  scheduled_date: string | null;
-};
-
-/** Proyecto con avance derivado (promedio de sus tareas) y TODAS sus tareas. */
+/** Proyecto con avance derivado (promedio de las tareas de sus objetivos). */
 export type ProjectWithStats = Project & {
-  progress: number; // 0–100, promedio de las tareas; 0 si no tiene
+  progress: number; // 0–100, promedio de las tareas de sus objetivos; 0 si no hay
+  objectiveCount: number;
   taskCount: number;
-  tasks: ProjectTaskLite[];
 };
 
-/** Proyectos del equipo (no archivados), opcionalmente filtrados por tipo. */
-export async function getProjects(
-  teamId: string,
-  type?: ProjectType
-): Promise<Project[]> {
+/** Proyectos del equipo (no archivados). */
+export async function getProjects(teamId: string): Promise<Project[]> {
   const supabase = await createClient();
-  let q = supabase
+  const { data } = await supabase
     .from("projects")
     .select("*")
     .eq("team_id", teamId)
     .eq("archived", false)
     .order("created_at", { ascending: true });
-
-  if (type) q = q.eq("type", type);
-
-  const { data } = await q;
   return data ?? [];
 }
 
-/**
- * Proyectos del tipo dado, con avance promedio y lista de tareas en backlog.
- * Hace 2 consultas (proyectos + tareas) y agrega en memoria.
- */
-export async function getProjectsWithStats(
-  teamId: string,
-  type: ProjectType
-): Promise<ProjectWithStats[]> {
+/** Un proyecto por id (o null). */
+export async function getProjectById(projectId: string): Promise<Project | null> {
   const supabase = await createClient();
+  const { data } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .maybeSingle();
+  return data ?? null;
+}
 
-  const projects = await getProjects(teamId, type);
+/**
+ * Proyectos con avance y conteos, agregando por la cadena
+ * proyecto → objetivos → tareas. 3 consultas + agregación en memoria.
+ */
+export async function getProjectsWithStats(teamId: string): Promise<ProjectWithStats[]> {
+  const supabase = await createClient();
+  const projects = await getProjects(teamId);
   if (projects.length === 0) return [];
 
-  const ids = projects.map((p) => p.id);
-  const { data: tasks } = await supabase
-    .from("tasks")
-    .select("id, project_id, title, progress, scheduled_date, done")
-    .eq("team_id", teamId)
-    .in("project_id", ids)
-    .order("created_at", { ascending: true });
+  const [{ data: objectives }, { data: tasks }] = await Promise.all([
+    supabase
+      .from("objectives")
+      .select("id, project_id")
+      .eq("team_id", teamId)
+      .eq("archived", false),
+    supabase
+      .from("tasks")
+      .select("objective_id, progress, done")
+      .eq("team_id", teamId),
+  ]);
 
-  const rows = tasks ?? [];
+  // objetivo → proyecto
+  const objToProject = new Map<string, string>();
+  const objCountByProject = new Map<string, number>();
+  for (const o of objectives ?? []) {
+    objToProject.set(o.id, o.project_id);
+    objCountByProject.set(o.project_id, (objCountByProject.get(o.project_id) ?? 0) + 1);
+  }
+
+  // acumular avance de tareas por proyecto
+  const sumByProject = new Map<string, { sum: number; n: number }>();
+  for (const t of tasks ?? []) {
+    const pid = objToProject.get(t.objective_id);
+    if (!pid) continue;
+    const acc = sumByProject.get(pid) ?? { sum: 0, n: 0 };
+    acc.sum += t.done ? 100 : t.progress;
+    acc.n += 1;
+    sumByProject.set(pid, acc);
+  }
 
   return projects.map((p) => {
-    const own = rows.filter((t) => t.project_id === p.id);
-    // Avance: promedio considerando terminadas como 100%.
-    const progress =
-      own.length === 0
-        ? 0
-        : Math.round(
-            own.reduce((sum, t) => sum + (t.done ? 100 : t.progress), 0) / own.length
-          );
-    const list: ProjectTaskLite[] = own.map((t) => ({
-      id: t.id,
-      title: t.title,
-      done: t.done,
-      progress: t.progress,
-      scheduled_date: t.scheduled_date,
-    }));
-
-    return { ...p, progress, taskCount: own.length, tasks: list };
+    const acc = sumByProject.get(p.id);
+    return {
+      ...p,
+      progress: acc && acc.n > 0 ? Math.round(acc.sum / acc.n) : 0,
+      objectiveCount: objCountByProject.get(p.id) ?? 0,
+      taskCount: acc?.n ?? 0,
+    };
   });
 }
 
 export type CreateProjectInput = {
   teamId: string;
   name: string;
-  type: ProjectType;
-  kpi?: string;
   icon?: string;
   color?: string;
+  companyObjectiveId?: string | null;
 };
 
 export async function createProject(input: CreateProjectInput): Promise<Project | null> {
@@ -102,10 +103,9 @@ export async function createProject(input: CreateProjectInput): Promise<Project 
     .insert({
       team_id: input.teamId,
       name: input.name.trim(),
-      type: input.type,
-      kpi: input.kpi?.trim() ?? "",
       icon: input.icon ?? "📌",
       color: input.color ?? "#0057FF",
+      company_objective_id: input.companyObjectiveId ?? null,
       created_by: user.id,
     })
     .select("*")
@@ -124,21 +124,13 @@ export async function updateProjectColor(projectId: string, color: string): Prom
   await supabase.from("projects").update({ color }).eq("id", projectId);
 }
 
-/**
- * Devuelve el proyecto "General" del equipo; si no existe, lo crea.
- * Lo usa la vista Hoy para que el quick-add tenga dónde colgar.
- */
-export async function getOrCreateGeneralProject(teamId: string): Promise<Project | null> {
+export async function updateProjectMeta(
+  projectId: string,
+  companyObjectiveId: string | null
+): Promise<void> {
   const supabase = await createClient();
-  const { data: existing } = await supabase
+  await supabase
     .from("projects")
-    .select("*")
-    .eq("team_id", teamId)
-    .eq("name", "General")
-    .limit(1)
-    .maybeSingle();
-
-  if (existing) return existing;
-
-  return createProject({ teamId, name: "General", type: "proyecto" });
+    .update({ company_objective_id: companyObjectiveId })
+    .eq("id", projectId);
 }

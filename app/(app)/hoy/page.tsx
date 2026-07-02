@@ -1,31 +1,47 @@
 import { getMyTeam } from "@/lib/queries/teams";
 import { getCurrentUser } from "@/lib/queries/auth";
 import { getTodayTasks } from "@/lib/queries/tasks";
-import { getTodayWorkStats } from "@/lib/queries/time";
+import { getProjects } from "@/lib/queries/projects";
+import { getTodayWorkStats, getTasksTotalMinutes } from "@/lib/queries/time";
 import { humanDay, todayISO } from "@/lib/dates";
 import { NewTaskButton } from "@/components/tasks/NewTaskButton";
 import { WorkTimer } from "@/components/hoy/WorkTimer";
 import { TaskBentoCard } from "@/components/hoy/TaskBentoCard";
 import { DaySummaryCard } from "@/components/hoy/DaySummaryCard";
+import { OnboardingSteps } from "@/components/hoy/OnboardingSteps";
 
 export default async function HoyPage() {
   const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
-  const tasks = team ? await getTodayTasks(team.team_id) : [];
 
-  const workStats =
+  // Tareas de hoy, cronómetro y proyectos (para el onboarding) en paralelo.
+  const [tasks, workStats, projects] = await Promise.all([
+    team ? getTodayTasks(team.team_id) : Promise.resolve([]),
     user && team
-      ? await getTodayWorkStats(user.id, team.team_id)
-      : { closedMinutes: 0, blocks: 0, activeSession: null };
+      ? getTodayWorkStats(user.id, team.team_id)
+      : Promise.resolve({ closedMinutes: 0, blocks: 0, activeSession: null, activeTaskTitle: null }),
+    team ? getProjects(team.team_id) : Promise.resolve([]),
+  ]);
+  const hasProjects = projects.length > 0;
+
+  // Total histórico de minutos por cada tarea de hoy (para mostrar en la tarjeta).
+  const taskTotals =
+    team && tasks.length > 0
+      ? await getTasksTotalMinutes(team.team_id, tasks.map((t) => t.id))
+      : {};
 
   const doneTasks = tasks.filter((t) => t.done).length;
 
   return (
     <div className="flex w-full flex-col gap-6 px-6 py-8">
+      {/* ── Onboarding suave: guía a planear antes de ejecutar ── */}
+      {!hasProjects && <OnboardingSteps />}
+
       {/* ── Cronómetro de trabajo ── */}
       <WorkTimer
         closedMinutes={workStats.closedMinutes}
         blocks={workStats.blocks}
         activeSession={workStats.activeSession}
+        activeTaskTitle={workStats.activeTaskTitle}
       />
 
       {/* ── Header ── */}
@@ -71,7 +87,12 @@ export default async function HoyPage() {
 
           <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {tasks.map((task) => (
-              <TaskBentoCard key={task.id} task={task} />
+              <TaskBentoCard
+                key={task.id}
+                task={task}
+                activeSession={workStats.activeSession}
+                totalMinutes={taskTotals[task.id] ?? 0}
+              />
             ))}
 
             {/* Card agregar tarea, translúcida y sutil */}
@@ -108,10 +129,10 @@ function EmptyState() {
         Hoy no tenés nada agendado
       </p>
       <p className="font-body text-sm text-fg-muted">
-        Tocá &ldquo;+ Tarea&rdquo; y elegí <strong>Hoy</strong>, o arrastrá desde el Backlog.
+        Sumá tareas desde tus objetivos (en <strong>Proyectos</strong>) y agendalas para hoy.
       </p>
       <div className="mt-2">
-        <NewTaskButton defaultDay="hoy" label="+ Agregar primera tarea" />
+        <NewTaskButton defaultDay="hoy" label="+ Agregar tarea de hoy" variant="outline" />
       </div>
     </div>
   );

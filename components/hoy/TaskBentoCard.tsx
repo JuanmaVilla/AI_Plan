@@ -5,6 +5,8 @@ import { MessageSquare, MoreHorizontal, Trash2, Check } from "lucide-react";
 import type { TaskWithMeta } from "@/lib/queries/tasks";
 import { toggleDoneAction } from "@/lib/actions/tasks";
 import { setProgressAction, setNoteAction, deleteTaskAction } from "@/app/(app)/hoy/actions";
+import { TaskTimeControl } from "@/components/hoy/TaskTimeControl";
+import type { TimeSession } from "@/lib/queries/time";
 
 const STATUS_STEPS = [0, 25, 50, 75, 100] as const;
 
@@ -75,9 +77,13 @@ function Avatar({ name, color }: { name: string; color: string }) {
 export function TaskBentoCard({
   task,
   size = "md",
+  activeSession = null,
+  totalMinutes = 0,
 }: {
   task: TaskWithMeta;
   size?: "sm" | "md" | "lg";
+  activeSession?: TimeSession | null;
+  totalMinutes?: number;
 }) {
   const [done, setDone] = useState(task.done);
   const [progress, setProgress] = useState(task.progress);
@@ -159,11 +165,16 @@ export function TaskBentoCard({
 
       {/* Bottom: avatar + controles secundarios (ocultos hasta hover) */}
       <div className="flex items-center justify-between pt-0.5">
-        {task.assignee ? (
-          <Avatar name={task.assignee.full_name} color={task.assignee.avatar_color} />
-        ) : (
-          <span />
-        )}
+        <div className="flex min-w-0 items-center gap-2">
+          {task.assignee && (
+            <Avatar name={task.assignee.full_name} color={task.assignee.avatar_color} />
+          )}
+          <TaskTimeControl
+            taskId={task.id}
+            activeSession={activeSession}
+            totalMinutes={totalMinutes}
+          />
+        </div>
 
         <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100">
           <button

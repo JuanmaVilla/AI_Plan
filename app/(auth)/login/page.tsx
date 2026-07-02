@@ -60,11 +60,14 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-base px-6">
       <div className="w-full max-w-sm rounded-[var(--radius-lg)] border border-[var(--glass-border)] bg-[var(--glass-bg)] p-8 shadow-[var(--shadow-2)] backdrop-blur-xl">
         <h1
-          className="text-gradient mb-1 font-display text-3xl font-extrabold tracking-tight"
+          className="text-gradient font-display text-3xl font-extrabold tracking-tight"
           style={{ lineHeight: 1.1 }}
         >
-          Hay Equipo
+          AI Plan
         </h1>
+        <p className="mb-1 font-body text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted">
+          by Hay Equipo IA
+        </p>
         <p className="mb-6 font-body text-sm text-fg-muted">
           {mode === "signin" ? "Entrá a tu equipo." : "Creá tu cuenta y tu equipo."}
         </p>

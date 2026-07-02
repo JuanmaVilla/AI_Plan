@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
 export const metadata: Metadata = {
-  title: "Hay Equipo",
-  description: "Organizador de tareas para equipos chicos, diseñado contra la saturación.",
+  title: "AI Plan — by Hay Equipo IA",
+  description: "AI Plan, by Hay Equipo IA — organizate sin saturarte: metas, proyectos, objetivos y tareas para equipos chicos.",
 };
 
 export default function RootLayout({
@@ -19,7 +16,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={cn("dark h-full", "font-sans", geist.variable)}
+      className={cn("dark h-full", "font-sans")}
     >
       <head>
         <script

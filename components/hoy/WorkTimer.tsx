@@ -24,10 +24,12 @@ export function WorkTimer({
   closedMinutes,
   blocks,
   activeSession: initialSession,
+  activeTaskTitle = null,
 }: {
   closedMinutes: number;
   blocks: number;
   activeSession: TimeSession | null;
+  activeTaskTitle?: string | null;
 }) {
   const [session, setSession] = useState<TimeSession | null>(initialSession);
   const [elapsed, setElapsed] = useState(0);
@@ -37,6 +39,13 @@ export function WorkTimer({
   const isRunning = !!session;
   const totalMinutes = closedMinutes + addedMinutes;
   const totalSeconds = totalMinutes * 60 + elapsed;
+
+  // Un solo reloj: reconciliar con el servidor tras revalidar (sea sesión del
+  // día o pegada a una tarea). Los minutos cerrados vienen ya de closedMinutes.
+  useEffect(() => {
+    setSession(initialSession);
+    setAddedMinutes(0);
+  }, [initialSession, closedMinutes]);
 
   useEffect(() => {
     if (!session) { setElapsed(0); return; }
@@ -76,8 +85,14 @@ export function WorkTimer({
         <span
           className={`h-2 w-2 rounded-full ${isRunning ? "animate-pulse bg-accent-mint" : "bg-fg-disabled"}`}
         />
-        <span className="font-body text-[11px] font-medium tracking-[0.16em] text-fg-muted">
-          {isRunning ? "TRABAJANDO" : totalMinutes > 0 ? "PAUSADO" : "SIN INICIAR"}
+        <span className="max-w-[180px] truncate font-body text-[11px] font-medium tracking-[0.16em] text-fg-muted">
+          {isRunning
+            ? activeTaskTitle
+              ? `EN: ${activeTaskTitle.toUpperCase()}`
+              : "TRABAJANDO"
+            : totalMinutes > 0
+            ? "PAUSADO"
+            : "SIN INICIAR"}
         </span>
       </div>
 

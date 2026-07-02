@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createProjectAction } from "@/lib/actions/projects";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,26 +12,27 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { ProjectType } from "@/lib/queries/projects";
 import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR } from "@/lib/projectColors";
 
 const ICONS = ["📌", "🚀", "🎯", "💡", "📈", "🛠️", "📣", "💰", "🧩", "❤️", "🔥", "🌱"];
 
-export function NewProjectDialog({ type }: { type: ProjectType }) {
-  const isObjetivo = type === "objetivo";
+export type MetaOption = { id: string; name: string; icon: string };
+
+export function NewProjectDialog({ metas }: { metas: MetaOption[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [kpi, setKpi] = useState("");
   const [icon, setIcon] = useState(ICONS[0]);
   const [color, setColor] = useState<string>(DEFAULT_PROJECT_COLOR);
+  const [metaId, setMetaId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setName("");
-    setKpi("");
     setIcon(ICONS[0]);
     setColor(DEFAULT_PROJECT_COLOR);
+    setMetaId("");
     setError(null);
   }
 
@@ -40,10 +42,16 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
       return;
     }
     startTransition(async () => {
-      const res = await createProjectAction({ name, type, kpi, icon, color });
+      const res = await createProjectAction({
+        name,
+        icon,
+        color,
+        companyObjectiveId: metaId || null,
+      });
       if (res.ok) {
         reset();
         setOpen(false);
+        router.refresh();
       } else {
         setError(res.error);
       }
@@ -52,18 +60,14 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>
-        {isObjetivo ? "Nuevo objetivo" : "Nuevo proyecto"}
-      </Button>
+      <Button onClick={() => setOpen(true)}>Nuevo proyecto</Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isObjetivo ? "Nuevo objetivo" : "Nuevo proyecto"}</DialogTitle>
+            <DialogTitle>Nuevo proyecto</DialogTitle>
             <DialogDescription>
-              {isObjetivo
-                ? "Un objetivo grande con su forma de medir el éxito."
-                : "Un proyecto con su forma de medir el éxito."}
+              Un proyecto agrupa objetivos. Después, dentro del proyecto, definís sus objetivos con KPI.
             </DialogDescription>
           </DialogHeader>
 
@@ -73,19 +77,27 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
-                placeholder={isObjetivo ? "Crecer la comunidad" : "Lanzar la web"}
+                placeholder="Ej: Canción A"
                 className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
               />
             </Labeled>
 
-            <Labeled label="KPI — ¿cómo se mide el éxito?">
-              <input
-                value={kpi}
-                onChange={(e) => setKpi(e.target.value)}
-                placeholder="Ej: 1.000 visitas / mes"
-                className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
-              />
-            </Labeled>
+            {metas.length > 0 && (
+              <Labeled label="¿Aporta a una meta de empresa? (opcional)">
+                <select
+                  value={metaId}
+                  onChange={(e) => setMetaId(e.target.value)}
+                  className="w-full rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
+                >
+                  <option value="">Sin meta</option>
+                  {metas.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.icon} {m.name}
+                    </option>
+                  ))}
+                </select>
+              </Labeled>
+            )}
 
             <Labeled label="Ícono">
               <div className="flex flex-wrap gap-2">
@@ -115,11 +127,7 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
                     onClick={() => setColor(c)}
                     aria-label={`Color ${c}`}
                     className="h-7 w-7 rounded-full transition-transform hover:scale-110"
-                    style={{
-                      background: c,
-                      outline: color === c ? "2px solid #fff" : "none",
-                      outlineOffset: "2px",
-                    }}
+                    style={{ background: c, outline: color === c ? "2px solid #fff" : "none", outlineOffset: "2px" }}
                   />
                 ))}
               </div>
@@ -145,9 +153,7 @@ export function NewProjectDialog({ type }: { type: ProjectType }) {
 function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="font-body text-xs uppercase tracking-[0.12em] text-fg-muted">
-        {label}
-      </span>
+      <span className="font-body text-xs uppercase tracking-[0.12em] text-fg-muted">{label}</span>
       {children}
     </label>
   );

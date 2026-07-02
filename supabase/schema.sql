@@ -54,35 +54,87 @@ returns boolean language sql security definer stable as $$
   );
 $$;
 
--- ── projects (proyectos y objetivos) ─────────────────────────
-create table if not exists projects (
+-- Helper: ¿el usuario actual es admin (owner/admin) de este equipo?
+create or replace function is_team_admin(t uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from team_members
+    where team_id = t and user_id = auth.uid()
+      and role in ('owner','admin')
+  );
+$$;
+
+-- ── invites (invitaciones por email; se resuelven al registrarse) ─
+create table if not exists invites (
   id         uuid primary key default uuid_generate_v4(),
   team_id    uuid not null references teams(id) on delete cascade,
-  name       text not null,
-  type       text not null default 'proyecto' check (type in ('proyecto','objetivo')),
-  kpi        text not null default '',
-  color      text not null default '#0057FF',
-  icon       text not null default '📌',
-  archived   boolean not null default false,
-  created_by uuid not null references profiles(id),
-  created_at timestamptz not null default now()
+  email      text not null,
+  role       text not null default 'member' check (role in ('admin','member')),
+  invited_by uuid not null references profiles(id),
+  created_at timestamptz not null default now(),
+  unique (team_id, email)
 );
 
--- ── tasks ────────────────────────────────────────────────────
+-- ── company_objectives (Metas de empresa — nivel superior) ───
+create table if not exists company_objectives (
+  id          uuid primary key default uuid_generate_v4(),
+  team_id     uuid not null references teams(id) on delete cascade,
+  name        text not null,
+  kpi         text not null default '',
+  target_date date,
+  color       text not null default '#0057FF',
+  icon        text not null default '🏁',
+  archived    boolean not null default false,
+  created_by  uuid not null references profiles(id),
+  created_at  timestamptz not null default now()
+);
+
+-- ── projects (apuntan opcionalmente a una Meta) ──────────────
+create table if not exists projects (
+  id                   uuid primary key default uuid_generate_v4(),
+  team_id              uuid not null references teams(id) on delete cascade,
+  name                 text not null,
+  company_objective_id uuid references company_objectives(id) on delete set null,
+  color                text not null default '#0057FF',
+  icon                 text not null default '📌',
+  archived             boolean not null default false,
+  created_by           uuid not null references profiles(id),
+  created_at           timestamptz not null default now()
+);
+
+-- ── objectives (Objetivos de proyecto, con KPI) ──────────────
+create table if not exists objectives (
+  id          uuid primary key default uuid_generate_v4(),
+  team_id     uuid not null references teams(id) on delete cascade,
+  project_id  uuid not null references projects(id) on delete cascade,
+  name        text not null,
+  kpi         text not null default '',
+  target_date date,
+  color       text not null default '#0057FF',
+  icon        text not null default '🎯',
+  archived    boolean not null default false,
+  created_by  uuid not null references profiles(id),
+  created_at  timestamptz not null default now()
+);
+create index if not exists objectives_project_idx on objectives(project_id);
+
+-- ── tasks (cuelgan de un objetivo — jerarquía estricta) ──────
 create table if not exists tasks (
   id             uuid primary key default uuid_generate_v4(),
   team_id        uuid not null references teams(id) on delete cascade,
-  project_id     uuid not null references projects(id) on delete cascade,
+  objective_id   uuid not null references objectives(id) on delete cascade,
   title          text not null,
   assignee_id    uuid references profiles(id),          -- NULL = sin asignar
   scheduled_date date,                                  -- NULL = backlog
   progress       int not null default 0 check (progress between 0 and 100),
+  done           boolean not null default false,
   note           text not null default '',
   created_by     uuid not null references profiles(id),
   created_at     timestamptz not null default now()
 );
 create index if not exists tasks_team_date_idx on tasks(team_id, scheduled_date);
 create index if not exists tasks_assignee_idx  on tasks(assignee_id);
+create index if not exists tasks_objective_idx on tasks(objective_id);
 
 -- ── time_sessions (cronómetro, con nombre del usuario) ───────
 create table if not exists time_sessions (
@@ -124,14 +176,17 @@ create table if not exists reminders (
 -- ============================================================
 -- ROW LEVEL SECURITY — cada quien ve solo lo de sus equipos
 -- ============================================================
-alter table profiles      enable row level security;
-alter table teams         enable row level security;
-alter table team_members  enable row level security;
-alter table projects      enable row level security;
-alter table tasks         enable row level security;
-alter table time_sessions enable row level security;
-alter table news_entries  enable row level security;
-alter table reminders     enable row level security;
+alter table profiles           enable row level security;
+alter table teams              enable row level security;
+alter table team_members       enable row level security;
+alter table invites            enable row level security;
+alter table company_objectives enable row level security;
+alter table projects           enable row level security;
+alter table objectives         enable row level security;
+alter table tasks              enable row level security;
+alter table time_sessions      enable row level security;
+alter table news_entries       enable row level security;
+alter table reminders          enable row level security;
 
 -- profiles: todos leen perfiles (para mostrar nombres/avatares); cada quien edita el suyo
 create policy "profiles_read"  on profiles for select using (true);
@@ -141,19 +196,62 @@ create policy "profiles_update" on profiles for update using (id = auth.uid());
 create policy "teams_read"   on teams for select using (is_team_member(id));
 create policy "teams_insert" on teams for insert with check (owner_id = auth.uid());
 
--- team_members: ver miembros de mis equipos
-create policy "members_read"   on team_members for select using (is_team_member(team_id));
-create policy "members_insert" on team_members for insert with check (is_team_member(team_id) or user_id = auth.uid());
+-- team_members: ver miembros de mis equipos.
+-- Alta/baja/cambios de rol pasan por RPCs SECURITY DEFINER (invite_member,
+-- claim_pending_invites, set_member_role, remove_member): no hay INSERT directo.
+create policy "members_read" on team_members for select using (is_team_member(team_id));
 
--- Patrón para tablas con team_id: todo permitido SOLO si soy miembro del equipo
-create policy "projects_all" on projects
-  for all using (is_team_member(team_id)) with check (is_team_member(team_id));
-create policy "tasks_all" on tasks
-  for all using (is_team_member(team_id)) with check (is_team_member(team_id));
-create policy "time_all" on time_sessions
-  for all using (is_team_member(team_id)) with check (is_team_member(team_id));
-create policy "news_all" on news_entries
-  for all using (is_team_member(team_id)) with check (is_team_member(team_id));
+-- invites: solo los admin del equipo ven/gestionan sus invitaciones
+create policy "invites_select" on invites for select using (is_team_admin(team_id));
+create policy "invites_insert" on invites for insert with check (is_team_admin(team_id));
+create policy "invites_delete" on invites for delete using (is_team_admin(team_id));
+
+-- Regla por rol: todos los miembros LEEN todo del equipo; gestionar/escribir
+-- se limita a admins o al dueño de la fila (assignee/author/user).
+
+-- company_objectives (Metas): leer todos; gestionar solo admin
+create policy "company_objectives_select" on company_objectives for select using (is_team_member(team_id));
+create policy "company_objectives_insert" on company_objectives for insert with check (is_team_admin(team_id));
+create policy "company_objectives_update" on company_objectives for update using (is_team_admin(team_id)) with check (is_team_admin(team_id));
+create policy "company_objectives_delete" on company_objectives for delete using (is_team_admin(team_id));
+
+-- projects: leer todos; crear/editar/borrar solo admin
+create policy "projects_select" on projects for select using (is_team_member(team_id));
+create policy "projects_insert" on projects for insert with check (is_team_admin(team_id));
+create policy "projects_update" on projects for update using (is_team_admin(team_id)) with check (is_team_admin(team_id));
+create policy "projects_delete" on projects for delete using (is_team_admin(team_id));
+
+-- objectives (Objetivos de proyecto): leer todos; gestionar solo admin
+create policy "objectives_select" on objectives for select using (is_team_member(team_id));
+create policy "objectives_insert" on objectives for insert with check (is_team_admin(team_id));
+create policy "objectives_update" on objectives for update using (is_team_admin(team_id)) with check (is_team_admin(team_id));
+create policy "objectives_delete" on objectives for delete using (is_team_admin(team_id));
+
+-- tasks: leer todas; admin gestiona; empleado crea/edita solo lo suyo (assignee)
+create policy "tasks_select" on tasks for select using (is_team_member(team_id));
+create policy "tasks_insert" on tasks for insert with check (
+  is_team_admin(team_id)
+  or (created_by = auth.uid() and coalesce(assignee_id, auth.uid()) = auth.uid())
+);
+create policy "tasks_update" on tasks for update
+  using (is_team_admin(team_id) or assignee_id = auth.uid())
+  with check (is_team_admin(team_id) or assignee_id = auth.uid());
+create policy "tasks_delete" on tasks for delete
+  using (is_team_admin(team_id) or created_by = auth.uid());
+
+-- time_sessions: leer todas (para /tiempos); cada quien escribe las suyas
+create policy "time_select" on time_sessions for select using (is_team_member(team_id));
+create policy "time_insert" on time_sessions for insert with check (user_id = auth.uid() and is_team_member(team_id));
+create policy "time_update" on time_sessions for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "time_delete" on time_sessions for delete using (user_id = auth.uid());
+
+-- news_entries: leer todas; escribir las propias; admin borra cualquiera
+create policy "news_select" on news_entries for select using (is_team_member(team_id));
+create policy "news_insert" on news_entries for insert with check (author_id = auth.uid() and is_team_member(team_id));
+create policy "news_update" on news_entries for update using (author_id = auth.uid()) with check (author_id = auth.uid());
+create policy "news_delete" on news_entries for delete using (is_team_admin(team_id) or author_id = auth.uid());
+
+-- reminders: todo permitido si soy miembro del equipo
 create policy "reminders_all" on reminders
   for all using (is_team_member(team_id)) with check (is_team_member(team_id));
 
@@ -162,5 +260,7 @@ create policy "reminders_all" on reminders
 -- ============================================================
 alter publication supabase_realtime add table tasks;
 alter publication supabase_realtime add table projects;
+alter publication supabase_realtime add table objectives;
+alter publication supabase_realtime add table company_objectives;
 alter publication supabase_realtime add table news_entries;
 alter publication supabase_realtime add table time_sessions;

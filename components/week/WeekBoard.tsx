@@ -25,6 +25,7 @@ export function WeekBoard({
   initialTasks,
   members,
   currentUserId,
+  canReassign = true,
 }: {
   weekDays: string[];
   monthDays: string[];
@@ -32,6 +33,8 @@ export function WeekBoard({
   initialTasks: TaskWithMeta[];
   members: Member[];
   currentUserId: string;
+  /** Solo los admin pueden reasignar tareas a otras personas. */
+  canReassign?: boolean;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -167,7 +170,11 @@ export function WeekBoard({
                   count={dayTasks.length}
                 >
                   {dayTasks.map((t) => (
-                    <MiniTask key={t.id} task={t} onCycleAssign={cycleAssign} />
+                    <MiniTask
+                      key={t.id}
+                      task={t}
+                      onCycleAssign={canReassign ? cycleAssign : undefined}
+                    />
                   ))}
                 </DayColumn>
               );
@@ -178,7 +185,7 @@ export function WeekBoard({
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
             tasks={backlog}
-            onCycleAssign={cycleAssign}
+            onCycleAssign={canReassign ? cycleAssign : undefined}
           />
         </div>
       </DndContext>
