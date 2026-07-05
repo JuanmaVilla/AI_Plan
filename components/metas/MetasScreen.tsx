@@ -3,13 +3,20 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Flag, Trash2, X, Link2 } from "lucide-react";
+import { Plus, Flag, Trash2, X, Link2, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import type { MetaWithProjects } from "@/lib/queries/metas";
-import { createMetaAction, archiveMetaAction } from "@/lib/actions/metas";
+import { createMetaAction, archiveMetaAction, updateMetaAction } from "@/lib/actions/metas";
 import { setProjectMetaAction } from "@/lib/actions/projects";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export type ProjectLite = {
   id: string;
@@ -45,7 +52,7 @@ export function MetasScreen({
           </p>
         </div>
         {canManage && !adding && (
-          <Button className="gap-1" onClick={() => setAdding(true)}>
+          <Button data-tour="metas-new" className="gap-1" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4" /> Nueva meta
           </Button>
         )}
@@ -152,6 +159,7 @@ function MetaCard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [linking, setLinking] = useState(false);
+  const [editing, setEditing] = useState(false);
   const color = meta.color || "#5b8def";
 
   // Proyectos que todavía no apuntan a esta meta (para vincular).
@@ -200,15 +208,26 @@ function MetaCard({
             {meta.progress}%
           </span>
           {canManage && (
-            <button
-              type="button"
-              onClick={archive}
-              disabled={pending}
-              aria-label="Archivar meta"
-              className="text-fg-disabled transition-colors hover:text-[var(--color-error)]"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                disabled={pending}
+                aria-label="Editar meta"
+                className="text-fg-disabled transition-colors hover:text-fg"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={archive}
+                disabled={pending}
+                aria-label="Archivar meta"
+                className="text-fg-disabled transition-colors hover:text-[var(--color-error)]"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -285,6 +304,97 @@ function MetaCard({
             </button>
           ))}
       </div>
+
+      {canManage && (
+        <EditMetaDialog
+          open={editing}
+          onOpenChange={setEditing}
+          meta={meta}
+          onSaved={() => router.refresh()}
+        />
+      )}
     </div>
+  );
+}
+
+/** Editar nombre, KPI y fecha de una meta (solo admin). */
+function EditMetaDialog({
+  open,
+  onOpenChange,
+  meta,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  meta: MetaWithProjects;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(meta.name);
+  const [kpi, setKpi] = useState(meta.kpi);
+  const [date, setDate] = useState(meta.target_date ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    if (!name.trim()) {
+      setError("El nombre no puede quedar vacío.");
+      return;
+    }
+    startTransition(async () => {
+      const res = await updateMetaAction(meta.id, {
+        name,
+        kpi,
+        targetDate: date || null,
+      });
+      if (res.ok) {
+        onOpenChange(false);
+        onSaved();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar meta</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre de la meta"
+            className="rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
+          />
+          <input
+            value={kpi}
+            onChange={(e) => setKpi(e.target.value)}
+            placeholder="KPI — ¿cómo se mide?"
+            className="rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-sm text-fg outline-none focus:border-[var(--border-active)]"
+          />
+          <label className="flex items-center gap-2 font-body text-sm text-fg-muted">
+            Fecha objetivo (opcional)
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-2 py-1 text-fg outline-none focus:border-[var(--border-active)]"
+            />
+          </label>
+          {error && <p className="font-body text-sm text-[var(--color-error)]">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button onClick={save} disabled={pending}>
+            {pending ? "Guardando…" : "Guardar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

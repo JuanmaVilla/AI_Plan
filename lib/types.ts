@@ -110,6 +110,57 @@ export type Database = {
           },
         ]
       }
+      kpis: {
+        Row: {
+          created_at: string
+          current_value: number
+          id: string
+          name: string
+          objective_id: string
+          position: number
+          target_value: number | null
+          team_id: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number
+          id?: string
+          name: string
+          objective_id: string
+          position?: number
+          target_value?: number | null
+          team_id: string
+          unit?: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number
+          id?: string
+          name?: string
+          objective_id?: string
+          position?: number
+          target_value?: number | null
+          team_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpis_objective_id_fkey"
+            columns: ["objective_id"]
+            isOneToOne: false
+            referencedRelation: "objectives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpis_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       news_entries: {
         Row: {
           advances: string[]
@@ -235,21 +286,27 @@ export type Database = {
       profiles: {
         Row: {
           avatar_color: string
+          avatar_url: string | null
           created_at: string
           full_name: string
           id: string
+          onboarding_done: boolean
         }
         Insert: {
           avatar_color?: string
+          avatar_url?: string | null
           created_at?: string
           full_name?: string
           id: string
+          onboarding_done?: boolean
         }
         Update: {
           avatar_color?: string
+          avatar_url?: string | null
           created_at?: string
           full_name?: string
           id?: string
+          onboarding_done?: boolean
         }
         Relationships: []
       }
@@ -362,6 +419,49 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_assignees: {
+        Row: {
+          created_at: string
+          profile_id: string
+          task_id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          profile_id: string
+          task_id: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          profile_id?: string
+          task_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignees_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -556,16 +656,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      claim_pending_invites: { Args: Record<PropertyKey, never>; Returns: number }
+      claim_pending_invites: { Args: never; Returns: number }
       create_team_for_current_user: {
         Args: { team_name: string }
         Returns: string
       }
       create_workspace: { Args: { workspace_name: string }; Returns: string }
+      delete_workspace: { Args: { t: string }; Returns: undefined }
+      rename_workspace: { Args: { new_name: string; t: string }; Returns: undefined }
       invite_member: {
         Args: { invite_email: string; invite_role: string; t: string }
         Returns: string
       }
+      is_task_assignee: { Args: { t: string }; Returns: boolean }
       is_team_admin: { Args: { t: string }; Returns: boolean }
       is_team_member: { Args: { t: string }; Returns: boolean }
       remove_member: { Args: { t: string; target: string }; Returns: undefined }

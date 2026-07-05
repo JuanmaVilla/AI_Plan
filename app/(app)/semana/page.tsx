@@ -1,26 +1,41 @@
-import { getMyTeam } from "@/lib/queries/teams";
-import { getWeekTasks, getBacklogTasks } from "@/lib/queries/tasks";
+import { getMyTeam, getMyTeams } from "@/lib/queries/teams";
+import { getWeekTasksView, getBacklogTasksView } from "@/lib/queries/tasks";
 import { getTeamMembers } from "@/lib/queries/members";
 import { getCurrentUser } from "@/lib/queries/auth";
-import { getViewScope } from "@/lib/queries/scope";
+import { getHsView, getHsSpaces, resolveHsView } from "@/lib/queries/hsView";
 import { isAdmin } from "@/lib/roles";
 import { currentWeekDays, next30Days, monthRange, todayISO } from "@/lib/dates";
 import { WeekBoard } from "@/components/week/WeekBoard";
 
 export default async function SemanaPage() {
-  const [team, user, scope] = await Promise.all([getMyTeam(), getCurrentUser(), getViewScope()]);
+  const [team, user, teams, hsView, hsSpaces] = await Promise.all([
+    getMyTeam(),
+    getCurrentUser(),
+    getMyTeams(),
+    getHsView(),
+    getHsSpaces(),
+  ]);
   if (!team || !user) return null;
 
   const weekDays = currentWeekDays();
   const monthDays = next30Days();
   // Traemos las tareas de los 30 días (la semana es un subconjunto).
   const { start, end } = monthRange();
-  const only = scope === "mine" ? user.id : undefined;
-  const admin = isAdmin(team.role);
+
+  const { teamIds, mineUid, multiSpace } = resolveHsView(
+    hsView,
+    team.team_id,
+    teams.map((t) => t.team_id),
+    hsSpaces,
+    user.id
+  );
+  const teamNames = Object.fromEntries(teams.map((t) => [t.team_id, t.name]));
+  // En vista multi-espacio no se reasigna (los miembros difieren por espacio).
+  const admin = isAdmin(team.role) && !multiSpace;
 
   const [rangeTasks, backlog, members] = await Promise.all([
-    getWeekTasks(team.team_id, start, end, only),
-    getBacklogTasks(team.team_id, only),
+    getWeekTasksView(teamIds, start, end, mineUid),
+    getBacklogTasksView(teamIds, mineUid),
     getTeamMembers(team.team_id),
   ]);
 
@@ -33,6 +48,11 @@ export default async function SemanaPage() {
       members={members}
       currentUserId={user.id}
       canReassign={admin}
+      hsView={hsView}
+      workspaces={teams}
+      selectedSpaces={hsSpaces}
+      teamNames={teamNames}
+      multiSpace={multiSpace}
     />
   );
 }

@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Tables, TablesUpdate } from "@/lib/types";
 import { getCurrentUser } from "@/lib/queries/auth";
+import type { AssigneeProfile } from "@/lib/queries/tasks";
+import { getKpisByObjectives, type Kpi } from "@/lib/queries/kpis";
 
 export type Objective = Tables<"objectives">;
 
@@ -10,20 +12,26 @@ export type ObjectiveTaskLite = {
   done: boolean;
   progress: number;
   scheduled_date: string | null;
-  assignee_id: string | null;
+  assignees: AssigneeProfile[];
 };
 
-/** Objetivo con avance (promedio de sus tareas, done=100) y sus tareas. */
+/** Objetivo con avance (promedio de sus tareas, done=100), sus tareas y KPIs. */
 export type ObjectiveWithStats = Objective & {
   progress: number;
   taskCount: number;
   tasks: ObjectiveTaskLite[];
+  kpis: Kpi[];
 };
 
-/** Objetivos (no archivados) de un proyecto, con avance y tareas. */
+/**
+ * Objetivos (no archivados) de un proyecto, con avance y tareas.
+ * Si viene assigneeId (filtro "solo lo mío"), solo lista las tareas de esa persona
+ * (el avance del objetivo se calcula igual sobre todas sus tareas).
+ */
 export async function getObjectivesByProject(
   teamId: string,
-  projectId: string
+  projectId: string,
+  assigneeId?: string
 ): Promise<ObjectiveWithStats[]> {
   const supabase = await createClient();
   const { data: objectives } = await supabase
@@ -38,12 +46,30 @@ export async function getObjectivesByProject(
   if (objs.length === 0) return [];
 
   const ids = objs.map((o) => o.id);
-  const { data: tasks } = await supabase
+  const kpiMap = await getKpisByObjectives(teamId, ids);
+
+  let query = supabase
     .from("tasks")
-    .select("id, objective_id, title, progress, done, scheduled_date, assignee_id")
+    .select(
+      "id, objective_id, title, progress, done, scheduled_date, assignee_rows:task_assignees(profile:profiles!task_assignees_profile_id_fkey(id, full_name, avatar_color, avatar_url))"
+    )
     .eq("team_id", teamId)
     .in("objective_id", ids)
     .order("created_at", { ascending: true });
+  if (assigneeId) {
+    // Filtro "solo lo mío": tareas donde soy responsable (join table) O que yo creé.
+    const { data: mineRows } = await supabase
+      .from("task_assignees")
+      .select("task_id")
+      .eq("team_id", teamId)
+      .eq("profile_id", assigneeId);
+    const mine = (mineRows ?? []).map((r) => r.task_id);
+    query =
+      mine.length === 0
+        ? query.eq("created_by", assigneeId)
+        : query.or(`created_by.eq.${assigneeId},id.in.(${mine.join(",")})`);
+  }
+  const { data: tasks } = await query;
 
   const rows = tasks ?? [];
 
@@ -59,9 +85,11 @@ export async function getObjectivesByProject(
       done: t.done,
       progress: t.progress,
       scheduled_date: t.scheduled_date,
-      assignee_id: t.assignee_id,
+      assignees: ((t.assignee_rows ?? []) as { profile: AssigneeProfile | null }[])
+        .map((a) => a.profile)
+        .filter((p): p is AssigneeProfile => p !== null),
     }));
-    return { ...o, progress, taskCount: own.length, tasks: list };
+    return { ...o, progress, taskCount: own.length, tasks: list, kpis: kpiMap.get(o.id) ?? [] };
   });
 }
 
@@ -122,9 +150,31 @@ export async function createObjective(input: CreateObjectiveInput): Promise<Obje
   return data ?? null;
 }
 
+/**
+ * Archiva el objetivo Y BORRA sus tareas (el usuario espera que desaparezcan
+ * de backlog/semana/hoy; el objetivo queda como historial archivado).
+ */
 export async function archiveObjective(objectiveId: string): Promise<void> {
   const supabase = await createClient();
+  await supabase.from("tasks").delete().eq("objective_id", objectiveId);
   await supabase.from("objectives").update({ archived: true }).eq("id", objectiveId);
+}
+
+/** Archiva el proyecto en cascada: borra tareas, archiva objetivos y proyecto. */
+export async function archiveProjectCascade(teamId: string, projectId: string): Promise<void> {
+  const supabase = await createClient();
+  const { data: objs } = await supabase
+    .from("objectives")
+    .select("id")
+    .eq("team_id", teamId)
+    .eq("project_id", projectId);
+  const ids = (objs ?? []).map((o) => o.id);
+
+  if (ids.length > 0) {
+    await supabase.from("tasks").delete().in("objective_id", ids);
+    await supabase.from("objectives").update({ archived: true }).in("id", ids);
+  }
+  await supabase.from("projects").update({ archived: true }).eq("id", projectId);
 }
 
 export async function updateObjective(

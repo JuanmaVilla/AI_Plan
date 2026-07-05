@@ -79,7 +79,7 @@ export function WorkTimer({
   }
 
   return (
-    <div className="card-soft mx-auto flex w-fit max-w-full items-center gap-5 rounded-full px-3 py-2.5 pl-6">
+    <div data-tour="cronometro" className="card-soft mx-auto flex w-fit max-w-full items-center gap-5 rounded-full px-3 py-2.5 pl-6">
       {/* Indicador estado */}
       <div className="flex items-center gap-2">
         <span

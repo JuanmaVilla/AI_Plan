@@ -5,6 +5,7 @@ import { getMyTeam } from "@/lib/queries/teams";
 import { isAdmin } from "@/lib/roles";
 import { createObjective, archiveObjective, updateObjective } from "@/lib/queries/objectives";
 import { createTask } from "@/lib/queries/tasks";
+import { createKpi } from "@/lib/queries/kpis";
 
 function revalidateProject(projectId: string) {
   revalidatePath(`/proyectos/${projectId}`);
@@ -15,7 +16,10 @@ function revalidateProject(projectId: string) {
 export async function createObjectiveAction(input: {
   projectId: string;
   name: string;
+  /** Primer KPI (opcional): se crea en la tabla kpis, con meta numérica si viene. */
   kpi: string;
+  kpiTarget?: number | null;
+  kpiUnit?: string;
   targetDate?: string | null;
   color?: string;
 }) {
@@ -30,11 +34,21 @@ export async function createObjectiveAction(input: {
     teamId: team.team_id,
     projectId: input.projectId,
     name,
-    kpi: input.kpi,
     targetDate: input.targetDate ?? null,
     color: input.color,
   });
   if (!obj) return { ok: false as const, error: "No se pudo crear." };
+
+  // El KPI vive en su propia tabla (medible: meta + valor actual).
+  if (input.kpi.trim()) {
+    await createKpi({
+      teamId: team.team_id,
+      objectiveId: obj.id,
+      name: input.kpi,
+      targetValue: input.kpiTarget ?? null,
+      unit: input.kpiUnit,
+    });
+  }
 
   revalidateProject(input.projectId);
   return { ok: true as const, id: obj.id, name: obj.name };
@@ -43,8 +57,13 @@ export async function createObjectiveAction(input: {
 export async function archiveObjectiveAction(objectiveId: string, projectId: string) {
   const team = await getMyTeam();
   if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
+  // Archiva el objetivo y BORRA sus tareas (aparecen avisadas en el ConfirmDialog).
   await archiveObjective(objectiveId);
   revalidateProject(projectId);
+  revalidatePath("/backlog");
+  revalidatePath("/semana");
+  revalidatePath("/hoy");
+  revalidatePath("/done");
   return { ok: true as const };
 }
 
@@ -76,7 +95,7 @@ export async function addObjectiveTaskAction(
     teamId: team.team_id,
     objectiveId,
     title: clean,
-    assigneeId: null,
+    assigneeIds: [],
     scheduledDate: null,
   });
   if (!task) return { ok: false as const, error: "No se pudo agregar." };

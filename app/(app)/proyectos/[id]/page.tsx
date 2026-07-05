@@ -5,8 +5,11 @@ import { getMyTeam } from "@/lib/queries/teams";
 import { getProjectById } from "@/lib/queries/projects";
 import { getObjectivesByProject } from "@/lib/queries/objectives";
 import { getMetas } from "@/lib/queries/metas";
+import { getCurrentUser } from "@/lib/queries/auth";
+import { getTeamMembers } from "@/lib/queries/members";
 import { isAdmin } from "@/lib/roles";
 import { ObjectivesPanel } from "@/components/objectives/ObjectivesPanel";
+import { ProjectHeaderActions } from "@/components/projects/ProjectHeaderActions";
 
 export default async function ProjectDetailPage({
   params,
@@ -20,9 +23,12 @@ export default async function ProjectDetailPage({
   const project = await getProjectById(id);
   if (!project || project.team_id !== team.team_id) redirect("/proyectos");
 
-  const [objectives, metas] = await Promise.all([
+  const user = await getCurrentUser();
+
+  const [objectives, metas, members] = await Promise.all([
     getObjectivesByProject(team.team_id, id),
     getMetas(team.team_id),
+    getTeamMembers(team.team_id),
   ]);
   const meta = metas.find((m) => m.id === project.company_objective_id) ?? null;
 
@@ -40,6 +46,14 @@ export default async function ProjectDetailPage({
           <h1 className="font-display text-4xl font-black text-fg" style={{ letterSpacing: "-0.03em" }}>
             {project.name}
           </h1>
+          {isAdmin(team.role) && (
+            <ProjectHeaderActions
+              projectId={project.id}
+              name={project.name}
+              icon={project.icon}
+              color={project.color}
+            />
+          )}
         </div>
         {meta && (
           <span className="font-body text-sm text-fg-muted">
@@ -53,8 +67,11 @@ export default async function ProjectDetailPage({
 
       <ObjectivesPanel
         projectId={project.id}
+        teamId={team.team_id}
         objectives={objectives}
         canManage={isAdmin(team.role)}
+        members={members}
+        currentUserId={user?.id ?? ""}
       />
     </div>
   );

@@ -67,6 +67,7 @@ export function NewsForm({ projects }: { projects: NewsProject[] }) {
     return (
       <button
         type="button"
+        data-tour="novedades-form"
         onClick={() => setOpen(true)}
         className="flex w-full items-center gap-3 rounded-[20px] border border-dashed border-[var(--border-default)] px-5 py-4 text-left transition-colors hover:border-[var(--border-active)]"
       >

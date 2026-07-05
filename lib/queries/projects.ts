@@ -119,6 +119,19 @@ export async function archiveProject(projectId: string): Promise<void> {
   await supabase.from("projects").update({ archived: true }).eq("id", projectId);
 }
 
+/** Edita nombre / icono / color del proyecto. */
+export async function updateProject(
+  projectId: string,
+  patch: { name?: string; icon?: string; color?: string }
+): Promise<void> {
+  const supabase = await createClient();
+  const update: { name?: string; icon?: string; color?: string } = {};
+  if (patch.name !== undefined) update.name = patch.name.trim();
+  if (patch.icon !== undefined) update.icon = patch.icon;
+  if (patch.color !== undefined) update.color = patch.color;
+  await supabase.from("projects").update(update).eq("id", projectId);
+}
+
 export async function updateProjectColor(projectId: string, color: string): Promise<void> {
   const supabase = await createClient();
   await supabase.from("projects").update({ color }).eq("id", projectId);

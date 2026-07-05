@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -13,10 +13,16 @@ import { es } from "date-fns/locale";
 import { Inbox } from "lucide-react";
 import type { TaskWithMeta } from "@/lib/queries/tasks";
 import type { Member } from "@/lib/queries/members";
-import { moveTaskAction, assignTaskAction } from "@/lib/actions/week";
+import {
+  moveTaskAction,
+  setTaskAssigneesAction,
+  addTaskAssigneeAction,
+} from "@/lib/actions/week";
 import { DayColumn } from "@/components/week/DayColumn";
 import { MiniTask } from "@/components/week/MiniTask";
 import { BacklogDrawer } from "@/components/backlog/BacklogDrawer";
+import { HsViewSelector, type WorkspaceLite } from "@/components/layout/HsViewSelector";
+import type { HsView } from "@/lib/queries/hsView";
 
 export function WeekBoard({
   weekDays,
@@ -26,6 +32,11 @@ export function WeekBoard({
   members,
   currentUserId,
   canReassign = true,
+  hsView,
+  workspaces,
+  selectedSpaces,
+  teamNames,
+  multiSpace = false,
 }: {
   weekDays: string[];
   monthDays: string[];
@@ -35,10 +46,21 @@ export function WeekBoard({
   currentUserId: string;
   /** Solo los admin pueden reasignar tareas a otras personas. */
   canReassign?: boolean;
+  hsView: HsView;
+  workspaces: WorkspaceLite[];
+  selectedSpaces: string[] | null;
+  /** team_id → nombre del espacio (para el chip en vista multi-espacio). */
+  teamNames: Record<string, string>;
+  multiSpace?: boolean;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [range, setRange] = useState<"7" | "30">("7");
+
+  // Resincronizar cuando el servidor manda datos nuevos (cambio de filtro, realtime, etc.).
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
 
   const days = range === "7" ? weekDays : monthDays;
 
@@ -52,9 +74,13 @@ export function WeekBoard({
     const target = String(e.over.id);
     const newDate = target === "backlog" ? null : target;
 
+    // No se pueden agendar tareas en días que ya pasaron.
+    if (newDate !== null && newDate < today) return;
+
     const task = tasks.find((t) => t.id === taskId);
-    // Al agendar una tarea sin responsable, me la auto-asigno (la estoy tomando).
-    const autoAssign = newDate !== null && task && !task.assignee_id;
+    const prevDate = task?.scheduled_date ?? null;
+    // Al agendar una tarea sin responsables, me la auto-asigno (la estoy tomando).
+    const autoAssign = newDate !== null && task && task.assignees.length === 0;
     const me = members.find((m) => m.id === currentUserId) ?? null;
 
     setTasks((prev) =>
@@ -65,12 +91,14 @@ export function WeekBoard({
               scheduled_date: newDate,
               ...(autoAssign && me
                 ? {
-                    assignee_id: me.id,
-                    assignee: {
-                      id: me.id,
-                      full_name: me.full_name,
-                      avatar_color: me.avatar_color,
-                    },
+                    assignees: [
+                      {
+                        id: me.id,
+                        full_name: me.full_name,
+                        avatar_color: me.avatar_color,
+                        avatar_url: me.avatar_url,
+                      },
+                    ],
                   }
                 : {}),
             }
@@ -78,31 +106,31 @@ export function WeekBoard({
       )
     );
 
-    moveTaskAction(taskId, newDate);
-    if (autoAssign && me) assignTaskAction(taskId, me.id);
+    moveTaskAction(taskId, newDate).then((res) => {
+      if (!res.ok) {
+        // El servidor rechazó el cambio: revertir.
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, scheduled_date: prevDate } : t))
+        );
+      }
+    });
+    if (autoAssign && me && task) addTaskAssigneeAction(taskId, task.team_id, me.id);
   }
 
-  function cycleAssign(task: TaskWithMeta) {
-    const options: (Member | null)[] = [null, ...members];
-    const currentIdx = options.findIndex(
-      (o) => (o?.id ?? null) === (task.assignee?.id ?? null)
-    );
-    const next = options[(currentIdx + 1) % options.length];
-
+  /** Actualiza los responsables (optimista) y persiste la lista completa. */
+  function changeAssignees(task: TaskWithMeta, ids: string[]) {
+    const profiles = members
+      .filter((m) => ids.includes(m.id))
+      .map((m) => ({
+        id: m.id,
+        full_name: m.full_name,
+        avatar_color: m.avatar_color,
+        avatar_url: m.avatar_url,
+      }));
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === task.id
-          ? {
-              ...t,
-              assignee_id: next?.id ?? null,
-              assignee: next
-                ? { id: next.id, full_name: next.full_name, avatar_color: next.avatar_color }
-                : null,
-            }
-          : t
-      )
+      prev.map((t) => (t.id === task.id ? { ...t, assignees: profiles } : t))
     );
-    assignTaskAction(task.id, next?.id ?? null);
+    setTaskAssigneesAction(task.id, task.team_id, ids);
   }
 
   const backlog = tasks.filter((t) => t.scheduled_date === null);
@@ -119,7 +147,8 @@ export function WeekBoard({
             {range === "7" ? "Tu semana" : "Tus 30 días"}
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3" data-tour="semana-view">
+          <HsViewSelector view={hsView} workspaces={workspaces} selectedSpaces={selectedSpaces} />
           <div className="flex items-center gap-1 rounded-full border border-[var(--border-default)] bg-white/5 p-1">
             {(["7", "30"] as const).map((r) => (
               <button
@@ -137,6 +166,7 @@ export function WeekBoard({
           </div>
           <button
             type="button"
+            data-tour="semana-backlog"
             onClick={() => setDrawerOpen((o) => !o)}
           className="flex items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-white/5 px-4 py-2.5 font-body text-sm font-semibold text-fg-secondary transition-colors hover:border-[var(--border-active)]"
         >
@@ -167,13 +197,18 @@ export function WeekBoard({
                   weekday={format(parseISO(day), "EEE", { locale: es })}
                   dayNum={format(parseISO(day), "d")}
                   isToday={day === today}
+                  isPast={day < today}
                   count={dayTasks.length}
                 >
                   {dayTasks.map((t) => (
                     <MiniTask
                       key={t.id}
                       task={t}
-                      onCycleAssign={canReassign ? cycleAssign : undefined}
+                      members={members}
+                      currentUserId={currentUserId}
+                      canReassign={canReassign}
+                      onAssigneesChange={changeAssignees}
+                      workspaceName={multiSpace ? teamNames[t.team_id] : undefined}
                     />
                   ))}
                 </DayColumn>
@@ -185,7 +220,11 @@ export function WeekBoard({
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
             tasks={backlog}
-            onCycleAssign={canReassign ? cycleAssign : undefined}
+            members={members}
+            currentUserId={currentUserId}
+            canReassign={canReassign}
+            onAssigneesChange={changeAssignees}
+            teamNames={multiSpace ? teamNames : undefined}
           />
         </div>
       </DndContext>

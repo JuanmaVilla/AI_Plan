@@ -37,6 +37,46 @@ export async function createWorkspaceAction(name: string) {
   return { ok: true as const, teamId };
 }
 
+/** Renombra un espacio de trabajo (owner o admin; validado en la BD). */
+export async function renameWorkspaceAction(teamId: string, name: string) {
+  const clean = name.trim();
+  if (!clean) return { ok: false as const, error: "El nombre no puede quedar vacío." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("rename_workspace", { t: teamId, new_name: clean });
+  if (error) return { ok: false as const, error: "No se pudo renombrar. ¿Eres admin?" };
+
+  revalidatePath("/", "layout");
+  return { ok: true as const };
+}
+
+/**
+ * Borra un espacio de trabajo COMPLETO (todo su contenido en cascada).
+ * Solo el dueño; la BD bloquea borrar el único espacio. Si era el activo,
+ * cambia la cookie a otro espacio del usuario.
+ */
+export async function deleteWorkspaceAction(teamId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_workspace", { t: teamId });
+  if (error) {
+    // El mensaje de la BD explica el motivo (no dueño / único espacio).
+    return { ok: false as const, error: error.message || "No se pudo borrar el espacio." };
+  }
+
+  const store = await cookies();
+  const active = store.get(ACTIVE_TEAM_COOKIE)?.value;
+  if (active === teamId) {
+    // Cambiar a otro espacio que le quede (getMyTeams ya no incluye el borrado).
+    const remaining = await getMyTeams();
+    const next = remaining[0]?.team_id;
+    if (next) store.set(ACTIVE_TEAM_COOKIE, next, { path: "/", maxAge: COOKIE_MAX_AGE });
+    else store.delete(ACTIVE_TEAM_COOKIE);
+  }
+
+  revalidatePath("/", "layout");
+  return { ok: true as const };
+}
+
 /** Invita a alguien por email al espacio activo (solo admin; validado en la BD). */
 export async function inviteMemberAction(email: string, role: "admin" | "member") {
   const clean = email.trim().toLowerCase();

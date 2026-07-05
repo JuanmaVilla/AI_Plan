@@ -2,24 +2,48 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, UserPlus, Trash2, Clock } from "lucide-react";
+import { Mail, UserPlus, Trash2, Clock, Pencil, AlertTriangle } from "lucide-react";
 import type { Member, PendingInvite } from "@/lib/queries/members";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { roleLabel } from "@/lib/roles";
 import {
   inviteMemberAction,
   setMemberRoleAction,
   removeMemberAction,
   cancelInviteAction,
+  renameWorkspaceAction,
+  deleteWorkspaceAction,
 } from "@/lib/actions/workspace";
 
 type Props = {
   workspaceName: string;
+  teamId: string;
+  isOwner: boolean;
+  /** false si es el único espacio del usuario (no se puede borrar). */
+  canDelete: boolean;
   currentUserId: string;
   members: Member[];
   invites: PendingInvite[];
 };
 
-export function EquipoManager({ workspaceName, currentUserId, members, invites }: Props) {
+export function EquipoManager({
+  workspaceName,
+  teamId,
+  isOwner,
+  canDelete,
+  currentUserId,
+  members,
+  invites,
+}: Props) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member">("member");
@@ -130,12 +154,7 @@ export function EquipoManager({ workspaceName, currentUserId, members, invites }
           const isOwner = m.role === "owner";
           return (
             <div key={m.id} className="card-soft flex items-center gap-3 rounded-[22px] p-4">
-              <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                style={{ background: m.avatar_color }}
-              >
-                {m.full_name.charAt(0).toUpperCase()}
-              </span>
+              <Avatar name={m.full_name} color={m.avatar_color} url={m.avatar_url} size="lg" />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className="truncate font-body text-sm font-semibold text-fg">
                   {m.full_name} {isMe && <span className="text-fg-muted">(tú)</span>}
@@ -202,6 +221,155 @@ export function EquipoManager({ workspaceName, currentUserId, members, invites }
           ))}
         </section>
       )}
+
+      {/* Ajustes del espacio: renombrar (owner/admin) + borrar (solo dueño) */}
+      <WorkspaceSettings
+        workspaceName={workspaceName}
+        teamId={teamId}
+        isOwner={isOwner}
+        canDelete={canDelete}
+      />
     </div>
+  );
+}
+
+/** Renombrar el espacio y (para el dueño) borrarlo con doble confirmación. */
+function WorkspaceSettings({
+  workspaceName,
+  teamId,
+  isOwner,
+  canDelete,
+}: {
+  workspaceName: string;
+  teamId: string;
+  isOwner: boolean;
+  canDelete: boolean;
+}) {
+  const router = useRouter();
+  const [name, setName] = useState(workspaceName);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const dirty = name.trim() !== workspaceName && name.trim() !== "";
+
+  function save() {
+    setMsg(null);
+    startTransition(async () => {
+      const res = await renameWorkspaceAction(teamId, name);
+      if (res.ok) {
+        setMsg("Nombre actualizado.");
+        router.refresh();
+      } else {
+        setMsg(res.error);
+      }
+    });
+  }
+
+  function remove() {
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteWorkspaceAction(teamId);
+      if (res.ok) {
+        setConfirmOpen(false);
+        router.push("/hoy");
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <span className="px-1 font-body text-xs font-semibold uppercase tracking-[0.12em] text-fg-muted">
+        Ajustes del espacio
+      </span>
+
+      {/* Renombrar */}
+      <div className="card-soft flex flex-col gap-3 rounded-[26px] p-5">
+        <span className="flex items-center gap-2 font-body text-sm font-semibold text-fg">
+          <Pencil className="h-4 w-4 text-accent-cyan" /> Nombre del espacio
+        </span>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && dirty && save()}
+            className="flex-1 rounded-2xl border border-[var(--border-default)] bg-white/5 px-3 py-2.5 font-body text-sm text-fg outline-none focus:border-[var(--border-active)]"
+          />
+          <Button onClick={save} disabled={pending || !dirty}>
+            {pending ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+        {msg && <p className="font-body text-xs text-fg-muted">{msg}</p>}
+      </div>
+
+      {/* Zona de peligro (solo el dueño) */}
+      {isOwner && (
+        <div className="flex flex-col gap-3 rounded-[26px] border border-[color-mix(in_srgb,var(--color-error)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-error)_7%,transparent)] p-5">
+          <span className="flex items-center gap-2 font-body text-sm font-semibold text-[var(--color-error)]">
+            <AlertTriangle className="h-4 w-4" /> Zona de peligro
+          </span>
+          <p className="font-body text-sm text-fg-secondary">
+            Borrar este espacio elimina <strong>para siempre</strong> todos sus proyectos,
+            objetivos, tareas, tiempos y miembros. No se puede deshacer.
+          </p>
+          {canDelete ? (
+            <Button
+              variant="destructive"
+              className="w-fit"
+              onClick={() => {
+                setConfirmText("");
+                setError(null);
+                setConfirmOpen(true);
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> Borrar este espacio
+            </Button>
+          ) : (
+            <p className="font-body text-xs text-fg-muted">
+              Es tu único espacio, así que no se puede borrar. Creá otro primero si querés
+              eliminar este.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Confirmación fuerte: escribir el nombre exacto */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Borrar “{workspaceName}”</DialogTitle>
+            <DialogDescription>
+              Esto elimina <strong>todo</strong> el contenido del espacio y no se puede
+              deshacer. Para confirmar, escribí el nombre exacto del espacio.
+            </DialogDescription>
+          </DialogHeader>
+          <input
+            autoFocus
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={workspaceName}
+            className="rounded-2xl border border-[var(--border-default)] bg-surface px-3 py-2.5 font-body text-sm text-fg outline-none focus:border-[var(--border-active)]"
+          />
+          {error && <p className="font-body text-sm text-[var(--color-error)]">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={pending}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={remove}
+              disabled={pending || confirmText.trim() !== workspaceName}
+            >
+              {pending ? "Borrando…" : "Borrar definitivamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

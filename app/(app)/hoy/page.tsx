@@ -1,31 +1,48 @@
-import { getMyTeam } from "@/lib/queries/teams";
+import { getMyTeam, getMyTeams } from "@/lib/queries/teams";
 import { getCurrentUser } from "@/lib/queries/auth";
-import { getTodayTasks } from "@/lib/queries/tasks";
+import { getTodayTasksView } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
 import { getTodayWorkStats, getTasksTotalMinutes } from "@/lib/queries/time";
+import { getHsView, getHsSpaces, resolveHsView } from "@/lib/queries/hsView";
 import { humanDay, todayISO } from "@/lib/dates";
 import { NewTaskButton } from "@/components/tasks/NewTaskButton";
+import { HsViewSelector } from "@/components/layout/HsViewSelector";
 import { WorkTimer } from "@/components/hoy/WorkTimer";
 import { TaskBentoCard } from "@/components/hoy/TaskBentoCard";
 import { DaySummaryCard } from "@/components/hoy/DaySummaryCard";
 import { OnboardingSteps } from "@/components/hoy/OnboardingSteps";
 
 export default async function HoyPage() {
-  const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
+  const [team, user, teams, hsView, hsSpaces] = await Promise.all([
+    getMyTeam(),
+    getCurrentUser(),
+    getMyTeams(),
+    getHsView(),
+    getHsSpaces(),
+  ]);
+  if (!team || !user) return null;
 
-  // Tareas de hoy, cronómetro y proyectos (para el onboarding) en paralelo.
+  // Resolver la vista → espacios a consultar + filtro "mío".
+  const { teamIds, mineUid, multiSpace } = resolveHsView(
+    hsView,
+    team.team_id,
+    teams.map((t) => t.team_id),
+    hsSpaces,
+    user.id
+  );
+  const teamNames = Object.fromEntries(teams.map((t) => [t.team_id, t.name]));
+
+  // Tareas de hoy (según la vista), cronómetro y proyectos en paralelo.
   const [tasks, workStats, projects] = await Promise.all([
-    team ? getTodayTasks(team.team_id) : Promise.resolve([]),
-    user && team
-      ? getTodayWorkStats(user.id, team.team_id)
-      : Promise.resolve({ closedMinutes: 0, blocks: 0, activeSession: null, activeTaskTitle: null }),
-    team ? getProjects(team.team_id) : Promise.resolve([]),
+    getTodayTasksView(teamIds, mineUid),
+    getTodayWorkStats(user.id, team.team_id),
+    getProjects(team.team_id),
   ]);
   const hasProjects = projects.length > 0;
 
-  // Total histórico de minutos por cada tarea de hoy (para mostrar en la tarjeta).
+  // Total histórico de minutos por tarea (del espacio activo; en otros espacios = 0).
   const taskTotals =
-    team && tasks.length > 0
+    tasks.length > 0
       ? await getTasksTotalMinutes(team.team_id, tasks.map((t) => t.id))
       : {};
 
@@ -62,7 +79,10 @@ export default async function HoyPage() {
                 {doneTasks} de {tasks.length} completadas
               </span>
             )}
-            <NewTaskButton defaultDay="hoy" label="+ Tarea" />
+            <HsViewSelector view={hsView} workspaces={teams} selectedSpaces={hsSpaces} />
+            <span data-tour="hoy-new-task" className="inline-flex">
+              <NewTaskButton defaultDay="hoy" label="+ Tarea" />
+            </span>
           </div>
         </div>
         {tasks.length > 0 && (
@@ -92,6 +112,7 @@ export default async function HoyPage() {
                 task={task}
                 activeSession={workStats.activeSession}
                 totalMinutes={taskTotals[task.id] ?? 0}
+                workspaceName={multiSpace ? teamNames[task.team_id] : undefined}
               />
             ))}
 

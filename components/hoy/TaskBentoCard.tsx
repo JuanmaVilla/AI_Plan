@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { MessageSquare, MoreHorizontal, Trash2, Check } from "lucide-react";
+import { MessageSquare, MoreHorizontal, Trash2, Check, Pencil, Copy } from "lucide-react";
 import type { TaskWithMeta } from "@/lib/queries/tasks";
 import { toggleDoneAction } from "@/lib/actions/tasks";
 import { setProgressAction, setNoteAction, deleteTaskAction } from "@/app/(app)/hoy/actions";
+import { AssigneeStack } from "@/components/tasks/AssigneePicker";
+import { EditTaskDialog } from "@/components/tasks/EditTaskDialog";
+import { DuplicateTaskDialog } from "@/components/tasks/DuplicateTaskDialog";
 import { TaskTimeControl } from "@/components/hoy/TaskTimeControl";
 import type { TimeSession } from "@/lib/queries/time";
 
@@ -62,28 +65,19 @@ function DoneCircle({ done, onToggle }: { done: boolean; onToggle: () => void })
   );
 }
 
-function Avatar({ name, color }: { name: string; color: string }) {
-  return (
-    <span
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ring-2 ring-white/10"
-      style={{ background: color }}
-      title={name}
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  );
-}
-
 export function TaskBentoCard({
   task,
   size = "md",
   activeSession = null,
   totalMinutes = 0,
+  workspaceName,
 }: {
   task: TaskWithMeta;
   size?: "sm" | "md" | "lg";
   activeSession?: TimeSession | null;
   totalMinutes?: number;
+  /** Nombre del espacio, solo cuando la vista abarca varios (chip). */
+  workspaceName?: string;
 }) {
   const [done, setDone] = useState(task.done);
   const [progress, setProgress] = useState(task.progress);
@@ -91,6 +85,8 @@ export function TaskBentoCard({
   const [savedNote, setSavedNote] = useState(task.note ?? "");
   const [showNote, setShowNote] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDuplicate, setShowDuplicate] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function toggleDone() {
@@ -148,7 +144,14 @@ export function TaskBentoCard({
         ) : (
           <span />
         )}
-        <DoneCircle done={done} onToggle={toggleDone} />
+        <div className="flex items-center gap-2">
+          {workspaceName && (
+            <span className="rounded-full bg-white/10 px-2 py-0.5 font-body text-[10px] font-semibold text-fg-secondary">
+              {workspaceName}
+            </span>
+          )}
+          <DoneCircle done={done} onToggle={toggleDone} />
+        </div>
       </div>
 
       {/* Título: protagonista */}
@@ -166,9 +169,7 @@ export function TaskBentoCard({
       {/* Bottom: avatar + controles secundarios (ocultos hasta hover) */}
       <div className="flex items-center justify-between pt-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          {task.assignee && (
-            <Avatar name={task.assignee.full_name} color={task.assignee.avatar_color} />
-          )}
+          {task.assignees.length > 0 && <AssigneeStack assignees={task.assignees} />}
           <TaskTimeControl
             taskId={task.id}
             activeSession={activeSession}
@@ -203,7 +204,29 @@ export function TaskBentoCard({
             {showMenu && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-elevated shadow-[var(--shadow-2)]">
+                <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-2xl border border-[var(--border-default)] bg-elevated shadow-[var(--shadow-2)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowEdit(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 font-body text-sm text-fg-secondary transition-colors hover:bg-white/5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMenu(false);
+                      setShowDuplicate(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 font-body text-sm text-fg-secondary transition-colors hover:bg-white/5"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Duplicar
+                  </button>
                   <button
                     type="button"
                     onClick={remove}
@@ -242,6 +265,19 @@ export function TaskBentoCard({
           )}
         </div>
       )}
+
+      <EditTaskDialog
+        open={showEdit}
+        onOpenChange={setShowEdit}
+        taskId={task.id}
+        currentTitle={task.title}
+      />
+      <DuplicateTaskDialog
+        open={showDuplicate}
+        onOpenChange={setShowDuplicate}
+        taskId={task.id}
+        taskTitle={task.title}
+      />
     </article>
   );
 }

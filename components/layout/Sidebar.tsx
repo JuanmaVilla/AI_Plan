@@ -16,26 +16,23 @@ import {
   Plus,
   Check,
   ChevronsUpDown,
-  Eye,
   Search,
-  User as UserIcon,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Avatar } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { NewTaskDialog } from "@/components/tasks/NewTaskDialog";
 import { openCommandPalette } from "@/components/search/CommandPalette";
 import {
   setActiveWorkspaceAction,
   createWorkspaceAction,
-  setViewScopeAction,
 } from "@/lib/actions/workspace";
 import { isAdmin } from "@/lib/roles";
 import type { Workspace } from "@/lib/queries/teams";
-import type { ViewScope } from "@/lib/queries/scope";
 
 const LINKS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/hoy", label: "Hoy", icon: CalendarCheck },
@@ -59,18 +56,17 @@ function greeting() {
 type SidebarProps = {
   name: string;
   avatarColor: string;
+  avatarUrl?: string | null;
   teams: Workspace[];
   activeTeamId: string | null;
   role: string;
-  viewScope: ViewScope;
 };
 
-export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScope }: SidebarProps) {
+export function Sidebar({ name, avatarColor, avatarUrl = null, teams, activeTeamId, role }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const initial = name.charAt(0).toUpperCase() || "?";
   const admin = isAdmin(role);
 
   const links = admin ? [...LINKS, { href: "/equipo", label: "Equipo", icon: Users }] : LINKS;
@@ -113,21 +109,26 @@ export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScop
           </div>
         )}
 
-        {/* Avatar + saludo */}
-        <div className="flex items-center gap-3 px-1 pt-1 pb-2">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-base font-bold text-white shadow-[var(--shadow-glow-sm)]"
-            style={{ background: avatarColor }}
-          >
-            {initial}
-          </span>
+        {/* Avatar + saludo (click → tu perfil) */}
+        <Link
+          href="/perfil"
+          title="Tu perfil"
+          className="flex items-center gap-3 rounded-2xl px-1 pt-1 pb-2 transition-colors hover:bg-white/5"
+        >
+          <Avatar
+            name={name}
+            color={avatarColor}
+            url={avatarUrl}
+            size="xl"
+            className="shadow-[var(--shadow-glow-sm)]"
+          />
           {!collapsed && (
             <div className="flex min-w-0 flex-col leading-tight">
               <span className="font-body text-xs text-fg-muted">{greeting()} 👋</span>
               <span className="truncate font-primary text-base font-bold text-fg">{name}</span>
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Selector de espacio de trabajo */}
         <WorkspaceSwitcher
@@ -182,6 +183,7 @@ export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScop
                 key={href}
                 href={href}
                 title={label}
+                data-tour={`nav-${href.replace("/", "")}`}
                 className={`group flex items-center gap-3 rounded-2xl px-3 py-2.5 font-body text-sm font-semibold transition-all ${
                   active
                     ? "text-white shadow-[0_6px_20px_rgba(0,87,255,0.45)]"
@@ -195,9 +197,6 @@ export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScop
             );
           })}
         </nav>
-
-        {/* Filtro global "solo lo mío" */}
-        <ScopeToggle scope={viewScope} collapsed={collapsed} />
 
         {/* Crear (guiado: proyecto → objetivo → tarea) */}
         <div className="mt-auto">
@@ -224,12 +223,9 @@ export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScop
       {/* ── Mobile: barra de vidrio arriba ── */}
       <div className="sticky top-0 z-20 flex flex-col gap-2 p-3 md:hidden">
         <div className="liquid-glass flex w-full items-center gap-2 rounded-3xl px-3 py-2">
-          <span
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-            style={{ background: avatarColor }}
-          >
-            {initial}
-          </span>
+          <Link href="/perfil" aria-label="Tu perfil">
+            <Avatar name={name} color={avatarColor} url={avatarUrl} size="md" />
+          </Link>
           <nav className="flex flex-1 items-center justify-around">
             {links.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href);
@@ -269,7 +265,6 @@ export function Sidebar({ name, avatarColor, teams, activeTeamId, role, viewScop
         {/* Espacio + filtro en móvil */}
         <div className="liquid-glass flex w-full items-center gap-2 rounded-3xl px-3 py-2">
           <WorkspaceSwitcher teams={teams} activeTeamId={activeTeamId} collapsed={false} canCreate />
-          <ScopeToggle scope={viewScope} collapsed compact />
         </div>
       </div>
 
@@ -479,65 +474,5 @@ function CreateMenu({ collapsed, onNewTask }: { collapsed: boolean; onNewTask: (
         </div>
       )}
     </div>
-  );
-}
-
-/** Interruptor global "solo lo mío" (guarda cookie y refresca todo). */
-function ScopeToggle({
-  scope,
-  collapsed,
-  compact,
-}: {
-  scope: ViewScope;
-  collapsed: boolean;
-  compact?: boolean;
-}) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const mine = scope === "mine";
-
-  function flip() {
-    startTransition(async () => {
-      await setViewScopeAction(mine ? "all" : "mine");
-      router.refresh();
-    });
-  }
-
-  const Icon = mine ? UserIcon : Eye;
-  const label = mine ? "Solo lo mío" : "Ver todo";
-
-  if (compact) {
-    return (
-      <button
-        type="button"
-        onClick={flip}
-        disabled={pending}
-        title={label}
-        aria-pressed={mine}
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${
-          mine ? "text-white" : "text-fg-muted"
-        }`}
-        style={mine ? { background: "#0057FF" } : undefined}
-      >
-        <Icon className="h-4 w-4" />
-      </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={flip}
-      disabled={pending}
-      title={label}
-      aria-pressed={mine}
-      className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 font-body text-sm font-semibold transition-colors ${
-        mine ? "text-white" : "text-fg-muted hover:bg-white/5 hover:text-fg"
-      } ${collapsed ? "justify-center" : ""}`}
-      style={mine ? { background: "#0057FF" } : undefined}
-    >
-      <Icon className="h-5 w-5 shrink-0" />
-      {!collapsed && <span>{label}</span>}
-    </button>
   );
 }

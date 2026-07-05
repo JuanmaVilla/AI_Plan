@@ -19,5 +19,10 @@ export async function setNoteAction(taskId: string, note: string) {
 
 export async function deleteTaskAction(taskId: string) {
   await deleteTask(taskId);
+  // La tarea puede estar visible en cualquiera de estas vistas.
   revalidatePath("/hoy");
+  revalidatePath("/semana");
+  revalidatePath("/backlog");
+  revalidatePath("/proyectos");
+  revalidatePath("/done");
 }

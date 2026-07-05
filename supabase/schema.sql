@@ -12,6 +12,7 @@ create table if not exists profiles (
   id           uuid primary key references auth.users(id) on delete cascade,
   full_name    text not null default '',
   avatar_color text not null default '#0cc0df',
+  avatar_url   text,                                     -- foto en bucket 'avatars' ({uid}/avatar.ext)
   created_at   timestamptz not null default now()
 );
 
@@ -135,6 +136,46 @@ create table if not exists tasks (
 create index if not exists tasks_team_date_idx on tasks(team_id, scheduled_date);
 create index if not exists tasks_assignee_idx  on tasks(assignee_id);
 create index if not exists tasks_objective_idx on tasks(objective_id);
+-- NOTA: tasks.assignee_id está DEPRECADA — el responsable vive en task_assignees
+-- (multi-responsable). Se elimina en la migración de limpieza final.
+
+-- ── task_assignees (varias personas por tarea) ───────────────
+create table if not exists task_assignees (
+  task_id    uuid not null references tasks(id) on delete cascade,
+  profile_id uuid not null references profiles(id) on delete cascade,
+  team_id    uuid not null references teams(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (task_id, profile_id)
+);
+create index if not exists task_assignees_profile_idx on task_assignees(profile_id);
+create index if not exists task_assignees_team_idx on task_assignees(team_id);
+
+-- Helper SECURITY DEFINER: evita recursión RLS entre tasks y task_assignees.
+-- Solo ejecutable por authenticated (revocado de public/anon).
+create or replace function is_task_assignee(t uuid)
+returns boolean language sql security definer stable
+set search_path = public, pg_temp as $$
+  select exists (
+    select 1 from task_assignees
+    where task_id = t and profile_id = auth.uid()
+  );
+$$;
+
+-- ── kpis (varios KPIs medibles por objetivo) ─────────────────
+-- objectives.kpi (texto libre) está DEPRECADA; se migró aquí.
+create table if not exists kpis (
+  id            uuid primary key default uuid_generate_v4(),
+  team_id       uuid not null references teams(id) on delete cascade,
+  objective_id  uuid not null references objectives(id) on delete cascade,
+  name          text not null,
+  target_value  numeric,                    -- null = KPI descriptivo sin meta numérica
+  current_value numeric not null default 0,
+  unit          text not null default '',
+  position      int not null default 0,
+  created_at    timestamptz not null default now()
+);
+create index if not exists kpis_objective_idx on kpis(objective_id);
+create index if not exists kpis_team_idx on kpis(team_id);
 
 -- ── time_sessions (cronómetro, con nombre del usuario) ───────
 create table if not exists time_sessions (
@@ -184,6 +225,8 @@ alter table company_objectives enable row level security;
 alter table projects           enable row level security;
 alter table objectives         enable row level security;
 alter table tasks              enable row level security;
+alter table task_assignees     enable row level security;
+alter table kpis               enable row level security;
 alter table time_sessions      enable row level security;
 alter table news_entries       enable row level security;
 alter table reminders          enable row level security;
@@ -234,10 +277,24 @@ create policy "tasks_insert" on tasks for insert with check (
   or (created_by = auth.uid() and coalesce(assignee_id, auth.uid()) = auth.uid())
 );
 create policy "tasks_update" on tasks for update
-  using (is_team_admin(team_id) or assignee_id = auth.uid())
-  with check (is_team_admin(team_id) or assignee_id = auth.uid());
+  using (is_team_admin(team_id) or created_by = auth.uid() or is_task_assignee(id))
+  with check (is_team_admin(team_id) or created_by = auth.uid() or is_task_assignee(id));
 create policy "tasks_delete" on tasks for delete
   using (is_team_admin(team_id) or created_by = auth.uid());
+
+-- task_assignees: leer todos; admin asigna a cualquiera, miembro solo a sí mismo
+create policy "ta_select" on task_assignees for select using (is_team_member(team_id));
+create policy "ta_insert" on task_assignees for insert
+  with check (is_team_member(team_id) and (is_team_admin(team_id) or profile_id = auth.uid()));
+create policy "ta_delete" on task_assignees for delete
+  using (is_team_admin(team_id) or profile_id = auth.uid());
+
+-- kpis: leer y actualizar valor todos los miembros; crear/borrar solo admin
+create policy "kpis_select" on kpis for select using (is_team_member(team_id));
+create policy "kpis_insert" on kpis for insert with check (is_team_admin(team_id));
+create policy "kpis_update" on kpis for update
+  using (is_team_member(team_id)) with check (is_team_member(team_id));
+create policy "kpis_delete" on kpis for delete using (is_team_admin(team_id));
 
 -- time_sessions: leer todas (para /tiempos); cada quien escribe las suyas
 create policy "time_select" on time_sessions for select using (is_team_member(team_id));
@@ -264,3 +321,5 @@ alter publication supabase_realtime add table objectives;
 alter publication supabase_realtime add table company_objectives;
 alter publication supabase_realtime add table news_entries;
 alter publication supabase_realtime add table time_sessions;
+alter publication supabase_realtime add table task_assignees;
+alter publication supabase_realtime add table kpis;

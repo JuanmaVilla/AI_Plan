@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/queries/auth";
 export type NewsEntry = Tables<"news_entries">;
 
 export type NewsEntryWithMeta = NewsEntry & {
-  author: Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color">;
+  author: Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color" | "avatar_url">;
   project: Pick<Tables<"projects">, "name" | "icon" | "color"> | null;
 };
 
@@ -18,7 +18,7 @@ export async function getNewsEntries(
   let q = supabase
     .from("news_entries")
     .select(
-      "*, author:profiles!news_entries_author_id_fkey(id, full_name, avatar_color), project:projects(name, icon, color)"
+      "*, author:profiles!news_entries_author_id_fkey(id, full_name, avatar_color, avatar_url), project:projects(name, icon, color)"
     )
     .eq("team_id", teamId);
   if (authorId) q = q.eq("author_id", authorId);

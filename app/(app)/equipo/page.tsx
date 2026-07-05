@@ -21,6 +21,9 @@ export default async function EquipoPage() {
   return (
     <EquipoManager
       workspaceName={workspaceName}
+      teamId={team.team_id}
+      isOwner={team.role === "owner"}
+      canDelete={teams.length > 1}
       currentUserId={user.id}
       members={members}
       invites={invites}

@@ -60,7 +60,7 @@ export function NewProjectDialog({ metas }: { metas: MetaOption[] }) {
 
   return (
     <>
-      <Button onClick={() => setOpen(true)}>Nuevo proyecto</Button>
+      <Button data-tour="proyectos-new" onClick={() => setOpen(true)}>Nuevo proyecto</Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // solo entra al bundle el ícono/función que se usa, no todo el paquete.
   experimental: {
     optimizePackageImports: ["lucide-react", "motion", "date-fns"],
+    // La foto de perfil se sube por server action; el default de 1MB es poco.
+    serverActions: { bodySizeLimit: "6mb" },
   },
   // Quita console.* en producción (deja error/warn) para un bundle más liviano.
   compiler: {

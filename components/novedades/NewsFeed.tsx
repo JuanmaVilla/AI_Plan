@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { Avatar } from "@/components/ui/avatar";
 import type { NewsEntryWithMeta } from "@/lib/queries/news";
 import { deleteNewsAction } from "@/app/(app)/novedades/actions";
 
@@ -12,18 +13,6 @@ function formatDay(dateStr: string) {
   if (isToday(d)) return "Hoy";
   if (isYesterday(d)) return "Ayer";
   return format(d, "EEEE d 'de' MMMM", { locale: es });
-}
-
-function Avatar({ name, color }: { name: string; color: string }) {
-  return (
-    <span
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-      style={{ background: color }}
-      title={name}
-    >
-      {name.charAt(0).toUpperCase()}
-    </span>
-  );
 }
 
 function EntryCard({ entry, canDelete }: { entry: NewsEntryWithMeta; canDelete: boolean }) {
@@ -38,7 +27,12 @@ function EntryCard({ entry, canDelete }: { entry: NewsEntryWithMeta; canDelete: 
     <div className="glass-card rounded-[26px] p-5 transition-all">
       {/* Header */}
       <div className="flex items-start gap-3">
-        <Avatar name={entry.author.full_name} color={entry.author.avatar_color} />
+        <Avatar
+          name={entry.author.full_name}
+          color={entry.author.avatar_color}
+          url={entry.author.avatar_url}
+          size="md"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <span className="font-body text-sm font-semibold text-fg">

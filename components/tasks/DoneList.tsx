@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import type { TaskWithMeta } from "@/lib/queries/tasks";
 import { toggleDoneAction } from "@/lib/actions/tasks";
 import { DoneToggle } from "@/components/tasks/DoneToggle";
+import { AssigneeStack } from "@/components/tasks/AssigneePicker";
 
 export function DoneList({ tasks }: { tasks: TaskWithMeta[] }) {
   if (tasks.length === 0) {
@@ -29,20 +29,16 @@ export function DoneList({ tasks }: { tasks: TaskWithMeta[] }) {
 }
 
 function Row({ task }: { task: TaskWithMeta }) {
-  const router = useRouter();
   const [done, setDone] = useState(task.done);
   const [, startTransition] = useTransition();
 
   function toggleDone(next: boolean) {
     setDone(next);
-    startTransition(async () => {
-      await toggleDoneAction(task.id, next);
-      router.refresh(); // al desmarcar, se va de esta lista
-    });
+    // toggleDoneAction (server action) ya auto-refresca la ruta; al desmarcar,
+    // la tarea sale de esta lista sin un router.refresh() extra (doble refetch).
+    startTransition(() => toggleDoneAction(task.id, next));
   }
 
-  const a = task.assignee;
-  const initial = a?.full_name?.charAt(0).toUpperCase() ?? "";
   const proj = task.project?.color || "#5b8def";
 
   return (
@@ -65,15 +61,7 @@ function Row({ task }: { task: TaskWithMeta }) {
           </span>
         )}
       </div>
-      {a && (
-        <span
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-          style={{ background: a.avatar_color }}
-          title={a.full_name}
-        >
-          {initial}
-        </span>
-      )}
+      {task.assignees.length > 0 && <AssigneeStack assignees={task.assignees} size="xs" />}
     </div>
   );
 }

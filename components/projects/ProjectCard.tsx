@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
 import type { ProjectWithStats } from "@/lib/queries/projects";
-import { archiveProjectAction, updateProjectColorAction } from "@/lib/actions/projects";
-import { PROJECT_COLORS } from "@/lib/projectColors";
+import { archiveProjectAction } from "@/lib/actions/projects";
+import { EditProjectDialog } from "@/components/projects/EditProjectDialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,17 +26,9 @@ export function ProjectCard({
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [color, setColor] = useState(project.color);
-  const [showColors, setShowColors] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const proj = color || "#5b8def";
-
-  function pickColor(next: string) {
-    setColor(next); // optimista
-    startTransition(() => {
-      updateProjectColorAction(project.id, next);
-    });
-  }
+  const proj = project.color || "#5b8def";
 
   function archive() {
     startTransition(async () => {
@@ -74,15 +67,16 @@ export function ProjectCard({
         <div className="absolute right-4 top-4 flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setShowColors((v) => !v)}
-            aria-label="Cambiar color"
-            title="Cambiar color"
-            className={`text-sm transition-colors ${showColors ? "text-fg" : "text-fg-disabled hover:text-fg-muted"}`}
+            onClick={() => setEditOpen(true)}
+            aria-label="Editar proyecto"
+            title="Editar nombre, ícono y color"
+            className="text-fg-disabled transition-colors hover:text-fg"
           >
-            🎨
+            <Pencil className="h-4 w-4" />
           </button>
           <button
             type="button"
+            data-tour="proyecto-archivar"
             onClick={() => setConfirmOpen(true)}
             aria-label="Archivar"
             className="font-body text-sm text-fg-disabled transition-colors hover:text-[var(--color-error)]"
@@ -92,27 +86,33 @@ export function ProjectCard({
         </div>
       )}
 
-      {canManage && showColors && (
-        <div className="absolute right-4 top-11 z-10 flex items-center gap-1.5 rounded-2xl border border-[var(--glass-border)] bg-elevated p-2 shadow-[var(--shadow-2)]">
-          {PROJECT_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => pickColor(c)}
-              aria-label={`Color ${c}`}
-              className="h-4 w-4 rounded-full transition-transform hover:scale-125"
-              style={{ background: c, outline: color === c ? "2px solid #fff" : "none", outlineOffset: "1px" }}
-            />
-          ))}
-        </div>
-      )}
+      <EditProjectDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        projectId={project.id}
+        currentName={project.name}
+        currentIcon={project.icon}
+        currentColor={project.color}
+      />
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>¿Archivar {project.name}?</DialogTitle>
             <DialogDescription>
-              Se oculta de la lista. Sus objetivos y tareas no se borran.
+              {project.taskCount > 0 ? (
+                <>
+                  Se archivan el proyecto y sus {project.objectiveCount}{" "}
+                  {project.objectiveCount === 1 ? "objetivo" : "objetivos"}, y{" "}
+                  <strong>
+                    se borran sus {project.taskCount}{" "}
+                    {project.taskCount === 1 ? "tarea" : "tareas"}
+                  </strong>{" "}
+                  (desaparecen del backlog, la semana y hoy). Esta acción no se puede deshacer.
+                </>
+              ) : (
+                <>Se oculta de la lista. No tiene tareas, así que no se borra nada más.</>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

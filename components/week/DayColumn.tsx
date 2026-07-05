@@ -7,6 +7,7 @@ export function DayColumn({
   weekday,
   dayNum,
   isToday,
+  isPast = false,
   children,
   count,
 }: {
@@ -14,10 +15,12 @@ export function DayColumn({
   weekday: string;
   dayNum: string;
   isToday: boolean;
+  /** Día ya transcurrido: se ve apagado y no acepta tareas nuevas. */
+  isPast?: boolean;
   count: number;
   children: React.ReactNode;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: isPast });
 
   return (
     <div
@@ -27,16 +30,23 @@ export function DayColumn({
           ? "border-[var(--border-active)] bg-[var(--accent-cyan-dim)]"
           : isToday
             ? "border-[var(--border-active)] bg-white/[0.03]"
-            : "border-[var(--border-default)] bg-white/[0.02]"
+            : isPast
+              ? "border-[var(--border-default)] bg-transparent opacity-45"
+              : "border-[var(--border-default)] bg-white/[0.02]"
       }`}
     >
       <div className="flex items-baseline justify-between px-1">
         <span
-          className={`font-body text-xs font-semibold capitalize ${
+          className={`flex items-baseline gap-1.5 font-body text-xs font-semibold capitalize ${
             isToday ? "text-accent-cyan" : "text-fg-muted"
           }`}
         >
           {weekday}
+          {isToday && (
+            <span className="rounded-full bg-[var(--accent-blue-dim)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-cyan">
+              Hoy
+            </span>
+          )}
         </span>
         <span
           className={`font-display text-sm font-bold tabular-nums ${

@@ -5,10 +5,11 @@ import { getMyTeam } from "@/lib/queries/teams";
 import { isAdmin } from "@/lib/roles";
 import {
   createProject,
-  archiveProject,
+  updateProject,
   updateProjectColor,
   updateProjectMeta,
 } from "@/lib/queries/projects";
+import { archiveProjectCascade } from "@/lib/queries/objectives";
 
 function revalidateProjects() {
   revalidatePath("/proyectos");
@@ -44,7 +45,28 @@ export async function createProjectAction(input: {
 export async function archiveProjectAction(projectId: string) {
   const team = await getMyTeam();
   if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
-  await archiveProject(projectId);
+  // Cascada: borra las tareas, archiva los objetivos y el proyecto.
+  await archiveProjectCascade(team.team_id, projectId);
+  revalidateProjects();
+  revalidatePath(`/proyectos/${projectId}`);
+  revalidatePath("/backlog");
+  revalidatePath("/semana");
+  revalidatePath("/hoy");
+  revalidatePath("/done");
+  return { ok: true as const };
+}
+
+/** Edita nombre / icono / color del proyecto. */
+export async function updateProjectAction(
+  projectId: string,
+  patch: { name?: string; icon?: string; color?: string }
+) {
+  if (patch.name !== undefined && !patch.name.trim()) {
+    return { ok: false as const, error: "El nombre no puede quedar vacío." };
+  }
+  const team = await getMyTeam();
+  if (!team || !isAdmin(team.role)) return { ok: false as const, error: "Solo un admin." };
+  await updateProject(projectId, patch);
   revalidateProjects();
   revalidatePath(`/proyectos/${projectId}`);
   return { ok: true as const };

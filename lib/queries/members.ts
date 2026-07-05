@@ -2,7 +2,10 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types";
 
-export type Member = Pick<Tables<"profiles">, "id" | "full_name" | "avatar_color"> & {
+export type Member = Pick<
+  Tables<"profiles">,
+  "id" | "full_name" | "avatar_color" | "avatar_url"
+> & {
   role: string;
 };
 
@@ -24,7 +27,7 @@ export const getTeamMembers = cache(async (teamId: string): Promise<Member[]> =>
   const supabase = await createClient();
   const { data } = await supabase
     .from("team_members")
-    .select("role, profile:profiles!team_members_user_id_fkey(id, full_name, avatar_color)")
+    .select("role, profile:profiles!team_members_user_id_fkey(id, full_name, avatar_color, avatar_url)")
     .eq("team_id", teamId);
 
   return (
@@ -32,7 +35,7 @@ export const getTeamMembers = cache(async (teamId: string): Promise<Member[]> =>
       .map((row) => {
         const p = row.profile as unknown as Pick<
           Tables<"profiles">,
-          "id" | "full_name" | "avatar_color"
+          "id" | "full_name" | "avatar_color" | "avatar_url"
         > | null;
         if (!p) return null;
         return { ...p, role: row.role };

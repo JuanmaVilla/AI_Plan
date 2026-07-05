@@ -1,6 +1,5 @@
 import { getMyTeam } from "@/lib/queries/teams";
 import { getCurrentUser } from "@/lib/queries/auth";
-import { getViewScope } from "@/lib/queries/scope";
 import { isAdmin } from "@/lib/roles";
 import { getNewsEntries } from "@/lib/queries/news";
 import { getProjects } from "@/lib/queries/projects";
@@ -11,12 +10,12 @@ import { NewsForm, type NewsProject } from "@/components/novedades/NewsForm";
 import { NewsFeed } from "@/components/novedades/NewsFeed";
 
 export default async function NovedadesPage() {
-  const [team, user, scope] = await Promise.all([getMyTeam(), getCurrentUser(), getViewScope()]);
+  const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
   if (!team) return null;
 
   // Novedades, proyectos y estadísticas del cronómetro en paralelo.
   const [entries, rawProjects, workStats] = await Promise.all([
-    getNewsEntries(team.team_id, scope === "mine" && user ? user.id : undefined),
+    getNewsEntries(team.team_id),
     getProjects(team.team_id),
     user
       ? getTodayWorkStats(user.id, team.team_id)

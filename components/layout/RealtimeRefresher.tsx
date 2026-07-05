@@ -19,12 +19,27 @@ export function RealtimeRefresher({ teamId }: { teamId: string }) {
   useEffect(() => {
     const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let pending = false;
 
-    // Agrupa ráfagas de eventos en un único router.refresh().
+    // Agrupa ráfagas de eventos en un único router.refresh(). Si la pestaña está
+    // en segundo plano, no refrescamos (gasto inútil): dejamos pendiente y
+    // refrescamos al volver a la pestaña.
+    const doRefresh = () => {
+      if (document.hidden) {
+        pending = true;
+        return;
+      }
+      pending = false;
+      router.refresh();
+    };
     const scheduleRefresh = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => router.refresh(), 400);
+      timer = setTimeout(doRefresh, 900);
     };
+    const onVisible = () => {
+      if (!document.hidden && pending) doRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
 
     const channel = supabase
       .channel(`hay-equipo:${teamId}`)
@@ -43,9 +58,20 @@ export function RealtimeRefresher({ teamId }: { teamId: string }) {
         { event: "*", schema: "public", table: "news_entries", filter: `team_id=eq.${teamId}` },
         scheduleRefresh
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "task_assignees", filter: `team_id=eq.${teamId}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "kpis", filter: `team_id=eq.${teamId}` },
+        scheduleRefresh
+      )
       .subscribe();
 
     return () => {
+      document.removeEventListener("visibilitychange", onVisible);
       if (timer) clearTimeout(timer);
       supabase.removeChannel(channel);
     };

@@ -4,8 +4,8 @@ import { getMyTeam } from "@/lib/queries/teams";
 import { getTeamMembers } from "@/lib/queries/members";
 import { getDailyWorkByMember } from "@/lib/queries/time";
 import { getCurrentUser } from "@/lib/queries/auth";
-import { getViewScope } from "@/lib/queries/scope";
 import { currentWeekDays, weekRange, isToday } from "@/lib/dates";
+import { Avatar } from "@/components/ui/avatar";
 
 function fmtMinutes(min: number): string {
   if (min <= 0) return "·";
@@ -17,21 +17,17 @@ function fmtMinutes(min: number): string {
 }
 
 export default async function TiemposPage() {
-  const [team, user, scope] = await Promise.all([getMyTeam(), getCurrentUser(), getViewScope()]);
+  const team = await getMyTeam();
 
   const days = currentWeekDays();
   const { start, end } = weekRange();
 
-  const [allMembers, byMember] = await Promise.all([
+  const [members, byMember] = await Promise.all([
     team ? getTeamMembers(team.team_id) : Promise.resolve([]),
     team
       ? getDailyWorkByMember(team.team_id, start, end)
       : Promise.resolve({} as Record<string, Record<string, number>>),
   ]);
-
-  // "Solo lo mío": muestra únicamente la fila del usuario.
-  const members =
-    scope === "mine" && user ? allMembers.filter((m) => m.id === user.id) : allMembers;
 
   // Totales por día (columna) y total general.
   const dayTotals: Record<string, number> = {};
@@ -101,12 +97,13 @@ export default async function TiemposPage() {
                   <tr key={m.id} className="border-t border-[var(--border-default)]">
                     <td className="sticky left-0 z-10 px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <span
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ring-2 ring-white/10"
-                          style={{ background: m.avatar_color }}
-                        >
-                          {m.full_name.charAt(0).toUpperCase()}
-                        </span>
+                        <Avatar
+                          name={m.full_name}
+                          color={m.avatar_color}
+                          url={m.avatar_url}
+                          size="md"
+                          className="ring-2 ring-white/10"
+                        />
                         <span className="truncate font-body text-sm font-semibold text-fg">
                           {m.full_name}
                         </span>

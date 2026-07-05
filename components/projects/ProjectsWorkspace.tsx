@@ -77,7 +77,7 @@ export function ProjectsWorkspace({
       ) : view === "normal" ? (
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key="normal" {...fade}>
-            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div data-tour="proyectos-list" className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {projects.map((p) => (
                 <ProjectCard key={p.id} project={p} canManage={canManage} />
               ))}

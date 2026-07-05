@@ -82,6 +82,10 @@ export function NewTaskDialog({
         setError("Elegí una fecha o cambiá a Backlog/Hoy.");
         return;
       }
+      if (dateValue < todayISO()) {
+        setError("Esa fecha ya pasó. Elegí hoy o un día futuro.");
+        return;
+      }
       scheduledDate = dateValue;
     }
     startTransition(async () => {
@@ -197,6 +201,7 @@ export function NewTaskDialog({
                 <input
                   type="date"
                   value={dateValue}
+                  min={todayISO()}
                   onChange={(e) => setDateValue(e.target.value)}
                   className="mt-1 rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-sm text-fg outline-none focus:border-[var(--border-active)]"
                 />
