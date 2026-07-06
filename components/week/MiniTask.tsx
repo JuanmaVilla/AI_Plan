@@ -56,13 +56,13 @@ export function MiniTask({
       style={style}
       {...attributes}
       {...listeners}
-      className="glass-card proj-glow flex cursor-grab touch-none flex-col gap-2 rounded-[22px] border-l-[3px] p-3 active:cursor-grabbing"
+      className="glass-card proj-glow flex cursor-grab touch-none flex-col gap-2 overflow-hidden rounded-[22px] border-l-[3px] p-3 active:cursor-grabbing"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
           <DoneToggle done={done} onToggle={toggleDone} size={16} />
           <span
-            className={`font-primary text-base font-black leading-tight tracking-[-0.01em] ${
+            className={`min-w-0 break-words [overflow-wrap:anywhere] font-primary text-sm font-black leading-tight tracking-[-0.01em] xl:text-base ${
               done ? "text-fg-muted line-through" : "text-fg"
             }`}
           >

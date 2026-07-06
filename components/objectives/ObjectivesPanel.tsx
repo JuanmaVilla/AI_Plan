@@ -228,7 +228,7 @@ function ObjectiveCard({
   }
 
   return (
-    <div className="glass-card proj-glow flex flex-col gap-3 rounded-[26px] p-5" style={{ ["--proj" as string]: color }}>
+    <div data-tour="objective-card" className="glass-card proj-glow flex flex-col gap-3 rounded-[26px] p-5" style={{ ["--proj" as string]: color }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-primary text-2xl font-black leading-tight tracking-[-0.01em] text-fg">
@@ -383,7 +383,7 @@ function TaskRow({
   }
 
   return (
-    <li className="group/task flex items-center gap-2">
+    <li data-tour="obj-task-row" className="group/task flex items-center gap-2">
       <DoneToggle done={done} onToggle={toggle} size={16} />
       <span className={`min-w-0 flex-1 truncate font-body text-base ${done ? "text-fg-muted line-through" : "text-fg-secondary"}`}>
         {task.title}

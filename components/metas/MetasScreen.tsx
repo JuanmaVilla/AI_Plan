@@ -189,7 +189,7 @@ function MetaCard({
   }
 
   return (
-    <div className="glass-card proj-glow flex flex-col gap-3 rounded-[26px] p-5" style={{ ["--proj" as string]: color }}>
+    <div data-tour="meta-card" className="glass-card proj-glow flex flex-col gap-3 rounded-[26px] p-5" style={{ ["--proj" as string]: color }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="font-primary text-lg font-bold text-fg">

@@ -185,7 +185,7 @@ export function WeekBoard({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div
             className={`grid min-w-0 flex-1 grid-cols-2 gap-3 sm:grid-cols-3 ${
-              drawerOpen ? "lg:grid-cols-4 xl:grid-cols-7" : "lg:grid-cols-7"
+              drawerOpen ? "lg:grid-cols-3 xl:grid-cols-7" : "lg:grid-cols-4 xl:grid-cols-7"
             }`}
           >
             {days.map((day) => {

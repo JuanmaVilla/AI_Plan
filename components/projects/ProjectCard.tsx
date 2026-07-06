@@ -39,7 +39,7 @@ export function ProjectCard({
   }
 
   return (
-    <div className="relative" style={{ ["--proj" as string]: proj }}>
+    <div data-tour="project-card" className="relative" style={{ ["--proj" as string]: proj }}>
       <Link
         href={`/proyectos/${project.id}`}
         className="glass-card proj-glow flex min-h-[240px] flex-col items-stretch rounded-[26px] p-6 text-left transition-transform hover:scale-[1.01]"

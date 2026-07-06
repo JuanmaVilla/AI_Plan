@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { usePathname, useRouter } from "next/navigation";
-import { Sparkles, X, ArrowLeft, ArrowRight, Check, MousePointerClick } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Sparkles, X, ArrowLeft, ArrowRight, Check, MousePointerClick, Hand } from "lucide-react";
 import { completeOnboardingAction } from "@/lib/actions/onboarding";
 import { SmartGraphic, KpiMockGraphic, PyramidGraphic } from "@/components/onboarding/tourGraphics";
 
-const CARD_W = 400;
 const SEEN_KEY = "onboarding-tour-seen"; // lo pone el modal de bienvenida al cerrarse
 
 /** Dispara la guía interactiva a pedido (desde la burbuja). */
@@ -17,56 +16,55 @@ export function startGuidedTour() {
 
 type Step = {
   id: string;
-  /** context = oscurece y señala (para explicar). action = pantalla clara y usable (el usuario hace). */
-  mode: "context" | "action";
-  screen: string; // etiqueta de pantalla ("Hoy", "Metas"…) que se muestra en la tarjeta
+  /**
+   * read  = explicar (oscurece + card centrada, con "Siguiente").
+   * nav   = ir a una pantalla (resalta el menú; avanza al navegar; SIN "Siguiente").
+   * create= crear algo (avanza cuando aparece la tarjeta; SIN "Siguiente").
+   * delete= borrar algo (avanza cuando desaparece; SIN "Siguiente").
+   * drag  = arrastrar (no detectable; mantiene "Siguiente" manual).
+   */
+  kind: "read" | "nav" | "create" | "delete" | "drag";
   anchor?: string; // data-tour a resaltar
-  /** Si viene, la guía avanza sola cuando el usuario llega a esa pantalla. */
-  advanceOn?: (pathname: string) => boolean;
+  advanceOn?: (pathname: string) => boolean; // pasos nav
+  /** Selector a contar para create/delete. */
+  countSelector?: string;
   kicker: string;
   title: string;
   body: React.ReactNode;
-  /** Ejemplo concreto a escribir (se muestra copiable, en modo acción). */
-  example?: string;
+  example?: string; // ejemplo concreto a escribir
 };
 
 export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isAdmin: boolean }) {
-  const router = useRouter();
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const dialogWasOpen = useRef(false);
+  const baselineCount = useRef<number | null>(null);
 
-  // Evita mismatch de hydration: el portal (a document.body) recién se monta en
-  // el cliente. En SSR y el primer render de cliente devolvemos null.
   useEffect(() => setMounted(true), []);
 
   // ── Guion ────────────────────────────────────────────────
   const steps: Step[] = [];
   steps.push({
     id: "welcome",
-    mode: "context",
-    screen: "Bienvenida",
+    kind: "read",
     kicker: "Guía paso a paso",
     title: "Aprendé haciendo 🙌",
     body: (
       <>
-        Te acompaño por el software y <strong>vos vas haciendo</strong> cada paso. Así de verdad
-        aprendés a usarlo.
+        Te acompaño por el software y <strong>vos vas haciendo</strong> cada paso: cuando te pido que
+        entres a una pantalla o crees algo, la guía avanza <strong>sola al hacerlo</strong>.
         {isAdmin
           ? " Vamos a crear un ejemplo real (que al final borrás vos mismo)."
           : " Con ejemplos visuales del método."}{" "}
-        Cuando quieras, tocá <strong>Saltar</strong>.
+        Podés <strong>Saltar</strong> cuando quieras.
       </>
     ),
   });
   steps.push({
     id: "go-hoy",
-    mode: "context",
-    screen: "Menú",
+    kind: "nav",
     anchor: "nav-hoy",
     advanceOn: (p) => p === "/hoy",
     kicker: "Empezá acá",
@@ -75,24 +73,34 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "hoy-intro",
-    mode: "context",
-    screen: "Hoy",
+    kind: "read",
     kicker: "Pantalla Hoy",
     title: "Esta es tu pantalla del día",
     body: (
       <>
-        Acá vas a ver <strong>solo tus tareas de hoy</strong>. Ahora está vacía porque todavía no
-        armaste el plan. El plan se arma <strong>de arriba hacia abajo</strong>: Metas → Proyectos →
-        Objetivos → Tareas. Vamos a la primera: las Metas.
+        Acá vas a ver <strong>solo tus tareas de hoy</strong>. Ahora está vacía porque falta el plan.
+        El plan se arma <strong>de arriba hacia abajo</strong>: Metas → Proyectos → Objetivos →
+        Tareas. Empecemos por las Metas.
       </>
     ),
   });
 
   if (isAdmin) {
     steps.push({
+      id: "metas-explain",
+      kind: "read",
+      kicker: "1 · Metas",
+      title: "Metas SMART, con un KPI",
+      body: (
+        <div className="flex flex-col gap-2">
+          <span>Las metas son el norte de la empresa. Que sean <strong>SMART</strong>:</span>
+          <SmartGraphic />
+        </div>
+      ),
+    });
+    steps.push({
       id: "go-metas",
-      mode: "context",
-      screen: "Menú",
+      kind: "nav",
       anchor: "nav-metas",
       advanceOn: (p) => p === "/metas",
       kicker: "1 · Metas",
@@ -101,51 +109,58 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     });
     steps.push({
       id: "create-meta",
-      mode: "action",
-      screen: "Metas",
+      kind: "create",
       anchor: "metas-new",
+      countSelector: '[data-tour="meta-card"]',
       kicker: "1 · Metas",
-      title: "Creá tu primera meta (SMART)",
+      title: "Creá tu primera meta",
       body: (
-        <div className="flex flex-col gap-2">
-          <span>
-            Tocá <strong>“Nueva meta”</strong> y escribila. Que sea <strong>SMART</strong>:
-          </span>
-          <SmartGraphic />
-          <span className="text-fg-muted">Cuando la tengas, tocá “Siguiente”.</span>
-        </div>
+        <>
+          Tocá <strong>“Nueva meta”</strong> y escribila (que sea SMART). Cuando la crees, la guía
+          sigue sola.
+        </>
       ),
-      example: "Ejemplo: Llegar a 20 clientes activos para diciembre · KPI: 20 clientes",
+      example: "Llegar a 20 clientes activos para diciembre · KPI: 20 clientes",
+    });
+    steps.push({
+      id: "proyectos-explain",
+      kind: "read",
+      kicker: "2 · Proyectos",
+      title: "Proyectos que aportan a la meta",
+      body: (
+        <>
+          Un proyecto es un bloque grande de trabajo que te acerca a una meta. Vas a crear uno y
+          ligarlo a la meta que hiciste.
+        </>
+      ),
     });
     steps.push({
       id: "go-proyectos",
-      mode: "context",
-      screen: "Menú",
+      kind: "nav",
       anchor: "nav-proyectos",
       advanceOn: (p) => p === "/proyectos",
       kicker: "2 · Proyectos",
-      title: "Ahora andá a Proyectos",
+      title: "Andá a Proyectos",
       body: <>Hacé clic en <strong>“Proyectos”</strong> en el menú. 👈</>,
     });
     steps.push({
       id: "create-proyecto",
-      mode: "action",
-      screen: "Proyectos",
+      kind: "create",
       anchor: "proyectos-new",
+      countSelector: '[data-tour="project-card"]',
       kicker: "2 · Proyectos",
-      title: "Creá un proyecto y ligalo a la meta",
+      title: "Creá un proyecto",
       body: (
         <>
           Tocá <strong>“Nuevo proyecto”</strong>, ponele nombre y elegí que <strong>aporte a tu meta</strong>.
-          Un proyecto es un bloque grande de trabajo que te acerca a esa meta.
+          Al crearlo, seguimos.
         </>
       ),
-      example: "Ejemplo: Campaña de lanzamiento",
+      example: "Campaña de lanzamiento",
     });
     steps.push({
       id: "open-proyecto",
-      mode: "context",
-      screen: "Proyectos",
+      kind: "nav",
       anchor: "proyectos-list",
       advanceOn: (p) => p.startsWith("/proyectos/"),
       kicker: "3 · Objetivos",
@@ -153,56 +168,67 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
       body: <>Hacé clic en la <strong>tarjeta del proyecto</strong> que creaste para entrar. 👆</>,
     });
     steps.push({
-      id: "create-objetivo",
-      mode: "action",
-      screen: "Proyecto",
-      anchor: "obj-add",
+      id: "objetivo-explain",
+      kind: "read",
       kicker: "3 · Objetivos",
-      title: "Agregá un objetivo medible",
+      title: "Objetivos medibles (con KPI)",
       body: (
         <div className="flex flex-col gap-2">
           <span>
-            Tocá <strong>“Objetivo”</strong>. Ponele nombre, y un <strong>KPI</strong> con número (meta + unidad):
+            Dentro del proyecto van objetivos <strong>medibles</strong>. Cada uno con un{" "}
+            <strong>KPI</strong> (número + meta):
           </span>
           <KpiMockGraphic />
         </div>
       ),
-      example: "Objetivo: Publicar 8 reels · KPI: Reels · Meta: 8 · Unidad: reels",
+    });
+    steps.push({
+      id: "create-objetivo",
+      kind: "create",
+      anchor: "obj-add",
+      countSelector: '[data-tour="objective-card"]',
+      kicker: "3 · Objetivos",
+      title: "Agregá un objetivo",
+      body: (
+        <>
+          Tocá <strong>“Objetivo”</strong>. Ponele nombre y un KPI con número (meta + unidad). Al
+          crearlo, seguimos.
+        </>
+      ),
+      example: "Publicar 8 reels · KPI: Reels · Meta: 8 · Unidad: reels",
     });
     steps.push({
       id: "kpi-explain",
-      mode: "context",
-      screen: "Proyecto",
+      kind: "read",
       anchor: "obj-kpi",
       kicker: "4 · KPIs",
       title: "El KPI mide tu avance",
       body: (
         <>
           Ese número con meta es tu KPI. Cuando avances, hacés <strong>clic en el valor</strong> y lo
-          actualizás. Así ves cuánto te falta, sin adivinar.
+          actualizás. Ves cuánto te falta sin adivinar.
         </>
       ),
     });
     steps.push({
       id: "create-tarea",
-      mode: "action",
-      screen: "Proyecto",
+      kind: "create",
       anchor: "obj-task",
+      countSelector: '[data-tour="obj-task-row"]',
       kicker: "5 · Tareas",
       title: "Sumá una tarea al objetivo",
       body: (
         <>
-          Escribí una tarea en el objetivo y apretá Enter. Cada tarea <strong>cuelga de un objetivo</strong>,
-          así nunca trabajás en algo que no te acerca a la meta.
+          Escribí una tarea en el objetivo y apretá Enter. Cada tarea <strong>cuelga de un objetivo</strong>.
+          Al agregarla, seguimos.
         </>
       ),
-      example: "Tarea: Grabar el primer reel",
+      example: "Grabar el primer reel",
     });
   } else {
     steps.push({
       id: "metodo",
-      mode: "context",
-      screen: "El método",
+      kind: "read",
       kicker: "Cómo funciona",
       title: "Metas → Proyectos → Objetivos → Tareas",
       body: (
@@ -217,8 +243,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
 
   steps.push({
     id: "alineacion",
-    mode: "context",
-    screen: "El método",
+    kind: "read",
     kicker: "Por qué funciona",
     title: "Todo se alinea",
     body: (
@@ -230,8 +255,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "go-semana",
-    mode: "context",
-    screen: "Menú",
+    kind: "nav",
     anchor: "nav-semana",
     advanceOn: (p) => p === "/semana",
     kicker: "Planear",
@@ -240,22 +264,20 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "semana",
-    mode: "action",
-    screen: "Semana",
+    kind: "drag",
     anchor: "semana-backlog",
     kicker: "Planear",
     title: "Planeá tu semana",
     body: (
       <>
         Abrí el <strong>Backlog</strong> y <strong>arrastrá</strong> una tarea a un día para agendarla.
-        Con el selector de arriba elegís qué ver (solo tuyas, del equipo o de varios espacios).
+        Cuando termines, tocá Siguiente.
       </>
     ),
   });
   steps.push({
     id: "go-hoy2",
-    mode: "context",
-    screen: "Menú",
+    kind: "nav",
     anchor: "nav-hoy",
     advanceOn: (p) => p === "/hoy",
     kicker: "Cada día",
@@ -264,8 +286,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "cronometro",
-    mode: "context",
-    screen: "Hoy",
+    kind: "read",
     anchor: "cronometro",
     kicker: "Registrar",
     title: "El cronómetro",
@@ -273,8 +294,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "go-novedades",
-    mode: "context",
-    screen: "Menú",
+    kind: "nav",
     anchor: "nav-novedades",
     advanceOn: (p) => p === "/novedades",
     kicker: "Cierre del día",
@@ -283,16 +303,14 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   });
   steps.push({
     id: "novedades",
-    mode: "context",
-    screen: "Novedades",
+    kind: "read",
     anchor: "novedades-form",
     kicker: "Cierre del día",
     title: "El hábito clave, todos los días",
     body: (
       <>
         Al terminar el día: escribí tus <strong>avances</strong>, <strong>problemas</strong> y{" "}
-        <strong>próximos pasos</strong>, y ahí mismo <strong>pará el cronómetro</strong>. Así el equipo
-        queda siempre alineado.
+        <strong>próximos pasos</strong>, y ahí mismo <strong>pará el cronómetro</strong>.
       </>
     ),
   });
@@ -300,8 +318,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   if (isAdmin) {
     steps.push({
       id: "go-proyectos-clean",
-      mode: "context",
-      screen: "Menú",
+      kind: "nav",
       anchor: "nav-proyectos",
       advanceOn: (p) => p === "/proyectos",
       kicker: "Limpieza",
@@ -310,15 +327,15 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     });
     steps.push({
       id: "cleanup",
-      mode: "action",
-      screen: "Proyectos",
+      kind: "delete",
       anchor: "proyecto-archivar",
+      countSelector: '[data-tour="project-card"]',
       kicker: "Limpieza",
       title: "Borrá el proyecto de ejemplo",
       body: (
         <>
-          Tocá la <strong>✕</strong> de la tarjeta del proyecto de ejemplo y confirmá. Se archiva el
-          proyecto <strong>con su objetivo y tareas</strong>. Así aprendés también a borrar.
+          Tocá la <strong>✕</strong> de la tarjeta del proyecto y confirmá. Se borra el proyecto{" "}
+          <strong>con su objetivo y tareas</strong>. Al borrarlo, seguimos.
         </>
       ),
     });
@@ -326,8 +343,7 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
 
   steps.push({
     id: "cierre",
-    mode: "context",
-    screen: "¡Listo!",
+    kind: "read",
     kicker: "¡Terminaste!",
     title: "Ya sabés el ciclo completo",
     body: (
@@ -343,6 +359,9 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
 
   const step = steps[Math.min(stepIndex, steps.length - 1)];
   const isLast = stepIndex >= steps.length - 1;
+  const isRead = step.kind === "read";
+  // read = card centrada que bloquea (lectura). El resto = barra arriba, pantalla usable.
+  const banner = !isRead;
 
   // ── Arranque automático (tras cerrar el modal de bienvenida) ──
   useEffect(() => {
@@ -370,10 +389,44 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     return () => window.removeEventListener("start-guided-tour", onStart);
   }, []);
 
-  // ── Avanzar solo cuando el usuario llega a la pantalla pedida ──
+  const advance = useCallback(() => {
+    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+  }, [steps.length]);
+
+  // ── Avanzar en pasos nav cuando el usuario llega a la pantalla ──
   useEffect(() => {
-    if (!active || !step.advanceOn) return;
-    if (step.advanceOn(pathname)) setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+    if (!active || step.kind !== "nav" || !step.advanceOn) return;
+    if (step.advanceOn(pathname)) advance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, stepIndex, pathname]);
+
+  // ── Avanzar en create/delete cuando aparece/desaparece la tarjeta ──
+  useEffect(() => {
+    if (!active || (step.kind !== "create" && step.kind !== "delete") || !step.countSelector) {
+      baselineCount.current = null;
+      return;
+    }
+    // Baseline al entrar (esperando a que el paso navegue/renderice).
+    baselineCount.current = null;
+    let cancelled = false;
+    const sel = step.countSelector;
+    const wantIncrease = step.kind === "create";
+    const t = setInterval(() => {
+      if (cancelled) return;
+      const n = document.querySelectorAll(sel).length;
+      if (baselineCount.current === null) {
+        baselineCount.current = n;
+        return;
+      }
+      if (wantIncrease ? n > baselineCount.current : n < baselineCount.current) {
+        clearInterval(t);
+        advance();
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, stepIndex, pathname]);
 
@@ -421,47 +474,18 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, stepIndex]);
 
-  // ── Detectar diálogo abierto (para no taparlo) + auto-avanzar al cerrarlo ──
-  // Si en un paso de acción el usuario abre y cierra un diálogo (crear proyecto,
-  // confirmar borrado…), avanzamos solos: ya hizo la acción, no repetimos la
-  // instrucción.
-  useEffect(() => {
-    if (!active || step.mode !== "action") {
-      setDialogOpen(false);
-      dialogWasOpen.current = false;
-      return;
-    }
-    dialogWasOpen.current = false;
-    const check = () => {
-      const open = !!document.querySelector(
-        '[data-slot="dialog-content"], [role="dialog"], [role="alertdialog"]'
-      );
-      setDialogOpen(open);
-      if (open) {
-        dialogWasOpen.current = true;
-      } else if (dialogWasOpen.current) {
-        dialogWasOpen.current = false;
-        setStepIndex((i) => Math.min(i + 1, steps.length - 1));
-      }
-    };
-    check();
-    const t = setInterval(check, 250);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex]);
-
   const finish = useCallback(async () => {
     setActive(false);
     setStepIndex(0);
     await completeOnboardingAction();
   }, []);
 
-  function next() {
+  function nextManual() {
     if (isLast) {
       finish();
       return;
     }
-    setStepIndex((i) => i + 1);
+    advance();
   }
 
   if (!mounted || typeof document === "undefined") return null;
@@ -484,70 +508,6 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     );
   }
 
-  const isAction = step.mode === "action";
-  // El usuario debe poder interactuar con la pantalla cuando tiene que hacer algo
-  // (acción) o navegar (advanceOn). En pasos de pura lectura, se bloquea el fondo.
-  const interactive = isAction || !!step.advanceOn;
-
-  // ── Posición de la tarjeta ──
-  let cardStyle: React.CSSProperties;
-  if (isAction) {
-    // Modo acción: tarjeta en la esquina inferior derecha; pantalla libre y usable.
-    cardStyle = { position: "fixed", bottom: 20, right: 20, width: CARD_W };
-  } else if (rect) {
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const below = spaceBelow > 300 || spaceBelow > rect.top;
-    let left = rect.left + rect.width / 2 - CARD_W / 2;
-    left = Math.max(12, Math.min(left, window.innerWidth - CARD_W - 12));
-    cardStyle = below
-      ? { position: "fixed", top: rect.bottom + 16, left, width: CARD_W }
-      : { position: "fixed", top: rect.top - 16, left, width: CARD_W, transform: "translateY(-100%)" };
-  } else {
-    cardStyle = { position: "fixed", top: "50%", left: "50%", width: CARD_W, transform: "translate(-50%, -50%)" };
-  }
-
-  // Con un diálogo abierto: barra fina arriba (no tapa el diálogo centrado).
-  if (isAction && dialogOpen) {
-    return createPortal(
-      <div className="fixed inset-x-0 top-0 z-[1000] flex justify-center px-3 pt-3" style={{ pointerEvents: "none" }}>
-        <div
-          style={{ pointerEvents: "auto" }}
-          className="flex w-full max-w-2xl flex-col gap-1.5 rounded-2xl border border-[var(--glass-border)] bg-elevated px-4 py-3 shadow-[var(--shadow-2)]"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 shrink-0 text-accent-cyan" />
-            <span className="font-body text-sm font-bold text-fg">{step.title}</span>
-            <button type="button" onClick={finish} aria-label="Saltar" className="ml-auto text-fg-muted hover:text-fg">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {step.example && (
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 font-body text-[10px] font-bold uppercase tracking-wide text-accent-mint">
-                Escribí
-              </span>
-              <span className="truncate font-body text-sm text-fg">{step.example}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-end gap-2 pt-0.5">
-            <button type="button" onClick={finish} className="rounded-lg px-2.5 py-1.5 font-body text-xs text-fg-muted hover:text-fg">
-              Saltar guía
-            </button>
-            <button
-              type="button"
-              onClick={next}
-              className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-body text-sm font-bold text-white"
-              style={{ background: "var(--brand-gradient, #0057FF)" }}
-            >
-              Siguiente <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    );
-  }
-
   const ring = rect ? (
     <div
       style={{
@@ -558,39 +518,88 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
         height: rect.height + 12,
         borderRadius: 14,
         outline: "3px solid var(--accent-cyan, #0cc0df)",
-        outlineOffset: 0,
-        boxShadow: isAction ? "0 0 0 4px rgba(12,192,223,0.25)" : "0 0 0 9999px rgba(0,0,0,0.66)",
+        boxShadow: isRead ? "0 0 0 9999px rgba(0,0,0,0.66)" : "0 0 0 4px rgba(12,192,223,0.25)",
         pointerEvents: "none",
         transition: "all 200ms ease",
       }}
     />
   ) : null;
 
-  return createPortal(
-    // En modo acción el contenedor NO bloquea la pantalla (pointer-events none);
-    // solo la tarjeta es interactiva. En contexto sí bloquea (para leer).
-    <div className="fixed inset-0 z-[900]" style={{ pointerEvents: interactive ? "none" : "auto" }}>
-      {/* Oscurecido / resaltado */}
-      {!isAction && !rect && <div className="fixed inset-0 bg-black/70" />}
-      {ring}
+  // ── BARRA SUPERIOR (nav / create / delete / drag): pantalla usable ──
+  if (banner) {
+    return createPortal(
+      <div className="fixed inset-0 z-[900]" style={{ pointerEvents: "none" }}>
+        {ring}
+        <div className="fixed inset-x-0 top-0 flex justify-center px-3 pt-3">
+          <div
+            style={{ pointerEvents: "auto" }}
+            className="flex w-full max-w-2xl flex-col gap-1.5 rounded-2xl border border-[var(--glass-border)] bg-elevated px-4 py-3 shadow-[var(--shadow-2)]"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-accent-cyan" />
+              <span className="font-body text-[11px] font-bold uppercase tracking-[0.12em] text-accent-cyan">
+                {step.kicker}
+              </span>
+              <button type="button" onClick={finish} aria-label="Saltar guía" className="ml-auto text-fg-muted hover:text-fg">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <span className="font-display text-lg font-black leading-tight text-fg">{step.title}</span>
+            <div className="font-body text-sm leading-snug text-fg-secondary">{step.body}</div>
+            {step.example && (
+              <div className="flex items-start gap-2 rounded-xl border border-dashed border-[var(--border-active)] bg-white/[0.04] px-3 py-2">
+                <span className="mt-0.5 shrink-0 font-body text-[10px] font-bold uppercase tracking-wide text-accent-mint">
+                  Escribí
+                </span>
+                <span className="font-body text-sm text-fg">{step.example}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <span className="flex items-center gap-1.5 font-body text-[11px] text-fg-muted">
+                {step.kind === "drag" ? (
+                  <><Hand className="h-3.5 w-3.5" /> Hacelo en la pantalla</>
+                ) : (
+                  <><MousePointerClick className="h-3.5 w-3.5" /> La guía sigue sola al hacerlo</>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={finish} className="rounded-lg px-2.5 py-1.5 font-body text-xs text-fg-muted hover:text-fg">
+                  Saltar guía
+                </button>
+                {step.kind === "drag" && (
+                  <button
+                    type="button"
+                    onClick={nextManual}
+                    className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-body text-sm font-bold text-white"
+                    style={{ background: "var(--brand-gradient, #0057FF)" }}
+                  >
+                    Siguiente <ArrowRight className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
-      {/* Tarjeta */}
+  // ── CARD CENTRADA (read): explicación con gráfico, bloquea el fondo ──
+  return createPortal(
+    <div className="fixed inset-0 z-[900]" style={{ pointerEvents: "auto" }}>
+      {rect ? ring : <div className="fixed inset-0 bg-black/70" />}
       <div
-        style={{ ...cardStyle, pointerEvents: "auto" }}
-        className="max-w-[calc(100vw-24px)] rounded-3xl border border-[var(--glass-border)] bg-elevated p-5 shadow-[var(--shadow-2)]"
+        style={{ position: "fixed", top: "50%", left: "50%", width: 400, transform: "translate(-50%, -50%)" }}
+        className="max-h-[85vh] max-w-[calc(100vw-24px)] overflow-y-auto rounded-3xl border border-[var(--glass-border)] bg-elevated p-5 shadow-[var(--shadow-2)]"
       >
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 font-body text-[11px] font-bold uppercase tracking-[0.12em] text-accent-cyan">
             <Sparkles className="h-3.5 w-3.5" /> {step.kicker}
           </span>
-          <span className="flex items-center gap-2">
-            <span className="rounded-full bg-white/8 px-2 py-0.5 font-body text-[10px] font-semibold text-fg-muted">
-              {step.screen}
-            </span>
-            <button type="button" onClick={finish} aria-label="Saltar guía" className="text-fg-muted transition-colors hover:text-fg">
-              <X className="h-4 w-4" />
-            </button>
-          </span>
+          <button type="button" onClick={finish} aria-label="Saltar guía" className="text-fg-muted transition-colors hover:text-fg">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         <h3 className="mt-1.5 font-display text-xl font-black leading-tight tracking-[-0.01em] text-fg">
@@ -598,22 +607,6 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
         </h3>
         <div className="mt-2 font-body text-sm leading-relaxed text-fg-secondary">{step.body}</div>
 
-        {step.example && (
-          <div className="mt-2.5 flex items-start gap-2 rounded-2xl border border-dashed border-[var(--border-active)] bg-white/[0.04] px-3 py-2">
-            <span className="mt-0.5 font-body text-[10px] font-bold uppercase tracking-wide text-accent-mint">
-              Escribí
-            </span>
-            <span className="font-body text-sm text-fg">{step.example}</span>
-          </div>
-        )}
-
-        {isAction && (
-          <p className="mt-2 flex items-center gap-1.5 font-body text-[11px] text-fg-muted">
-            <MousePointerClick className="h-3.5 w-3.5" /> Hacelo vos en la pantalla; cuando termines, tocá Siguiente.
-          </p>
-        )}
-
-        {/* Progreso */}
         <div className="mt-4 flex items-center gap-1">
           {steps.map((s, i) => (
             <span key={s.id} className={`h-1 flex-1 rounded-full transition-colors ${i <= stepIndex ? "bg-accent-cyan" : "bg-white/12"}`} />
@@ -629,14 +622,13 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
           >
             <ArrowLeft className="h-4 w-4" /> Atrás
           </button>
-
           <div className="flex items-center gap-2">
             <button type="button" onClick={finish} className="rounded-xl px-3 py-2 font-body text-sm text-fg-muted transition-colors hover:text-fg">
               Saltar
             </button>
             <button
               type="button"
-              onClick={next}
+              onClick={nextManual}
               className="flex items-center gap-1.5 rounded-xl px-4 py-2 font-body text-sm font-bold text-white shadow-[0_6px_20px_rgba(0,87,255,0.4)]"
               style={{ background: "var(--brand-gradient, #0057FF)" }}
             >
