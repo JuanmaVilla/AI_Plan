@@ -40,7 +40,6 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const baselineCount = useRef<number | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -400,36 +399,6 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, stepIndex, pathname]);
 
-  // ── Avanzar en create/delete cuando aparece/desaparece la tarjeta ──
-  useEffect(() => {
-    if (!active || (step.kind !== "create" && step.kind !== "delete") || !step.countSelector) {
-      baselineCount.current = null;
-      return;
-    }
-    // Baseline al entrar (esperando a que el paso navegue/renderice).
-    baselineCount.current = null;
-    let cancelled = false;
-    const sel = step.countSelector;
-    const wantIncrease = step.kind === "create";
-    const t = setInterval(() => {
-      if (cancelled) return;
-      const n = document.querySelectorAll(sel).length;
-      if (baselineCount.current === null) {
-        baselineCount.current = n;
-        return;
-      }
-      if (wantIncrease ? n > baselineCount.current : n < baselineCount.current) {
-        clearInterval(t);
-        advance();
-      }
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex, pathname]);
-
   // ── Ubicar el ancla ──
   useEffect(() => {
     if (!active || !step.anchor) {
@@ -556,24 +525,24 @@ export function TourController({ autoStart, isAdmin }: { autoStart: boolean; isA
             )}
             <div className="flex items-center justify-between gap-2 pt-0.5">
               <span className="flex items-center gap-1.5 font-body text-[11px] text-fg-muted">
-                {step.kind === "drag" ? (
-                  <><Hand className="h-3.5 w-3.5" /> Hacelo en la pantalla</>
+                {step.kind === "nav" ? (
+                  <><MousePointerClick className="h-3.5 w-3.5" /> La guía sigue sola al hacer clic</>
                 ) : (
-                  <><MousePointerClick className="h-3.5 w-3.5" /> La guía sigue sola al hacerlo</>
+                  <><Hand className="h-3.5 w-3.5" /> Hacelo; después tocá Siguiente</>
                 )}
               </span>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={finish} className="rounded-lg px-2.5 py-1.5 font-body text-xs text-fg-muted hover:text-fg">
                   Saltar guía
                 </button>
-                {step.kind === "drag" && (
+                {step.kind !== "nav" && (
                   <button
                     type="button"
                     onClick={nextManual}
                     className="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 font-body text-sm font-bold text-white"
                     style={{ background: "var(--brand-gradient, #0057FF)" }}
                   >
-                    Siguiente <ArrowRight className="h-4 w-4" />
+                    {isLast ? "Terminar" : "Siguiente"} <ArrowRight className="h-4 w-4" />
                   </button>
                 )}
               </div>
