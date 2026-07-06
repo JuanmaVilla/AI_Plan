@@ -8,8 +8,43 @@ import {
 } from "date-fns";
 import { es } from "date-fns/locale";
 
-/** Fecha de hoy en formato 'yyyy-MM-dd' (lo que guarda la columna scheduled_date). */
-export function todayISO(): string {
+/** Zona horaria por defecto (cuando el usuario no eligió una). */
+export const DEFAULT_TIMEZONE = "America/Argentina/Buenos_Aires";
+
+/** Zonas horarias por país para el selector de perfil. */
+export const TIMEZONE_OPTIONS: { label: string; value: string }[] = [
+  { label: "Argentina (Buenos Aires)", value: "America/Argentina/Buenos_Aires" },
+  { label: "Uruguay (Montevideo)", value: "America/Montevideo" },
+  { label: "Chile (Santiago)", value: "America/Santiago" },
+  { label: "Paraguay (Asunción)", value: "America/Asuncion" },
+  { label: "Bolivia (La Paz)", value: "America/La_Paz" },
+  { label: "Brasil (São Paulo)", value: "America/Sao_Paulo" },
+  { label: "Perú (Lima)", value: "America/Lima" },
+  { label: "Colombia (Bogotá)", value: "America/Bogota" },
+  { label: "Ecuador (Guayaquil)", value: "America/Guayaquil" },
+  { label: "Venezuela (Caracas)", value: "America/Caracas" },
+  { label: "México (Ciudad de México)", value: "America/Mexico_City" },
+  { label: "EE. UU. — Este (New York)", value: "America/New_York" },
+  { label: "EE. UU. — Central (Chicago)", value: "America/Chicago" },
+  { label: "EE. UU. — Pacífico (Los Ángeles)", value: "America/Los_Angeles" },
+  { label: "España (Madrid)", value: "Europe/Madrid" },
+];
+
+/**
+ * Fecha de hoy en 'yyyy-MM-dd' (lo que guarda scheduled_date).
+ * Con `timeZone` calcula el día en la zona del usuario (clave en el servidor,
+ * que corre en UTC). Sin zona, usa la hora local del entorno (navegador).
+ */
+export function todayISO(timeZone?: string): string {
+  if (timeZone) {
+    // en-CA formatea como 'YYYY-MM-DD'.
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }
   return format(new Date(), "yyyy-MM-dd");
 }
 
@@ -42,8 +77,10 @@ export function monthRange(base: Date = new Date()): { start: string; end: strin
   return { start: toISODate(monday), end: toISODate(addDays(monday, 29)) };
 }
 
-/** ¿La fecha ISO 'yyyy-MM-dd' es hoy? */
-export function isToday(iso: string): boolean {
+/** ¿La fecha ISO 'yyyy-MM-dd' es hoy? Si se pasa `todayStr` (ya en la zona del
+ *  usuario) compara contra eso; si no, usa la hora local del entorno. */
+export function isToday(iso: string, todayStr?: string): boolean {
+  if (todayStr) return iso === todayStr;
   return dfIsToday(parseISO(iso));
 }
 

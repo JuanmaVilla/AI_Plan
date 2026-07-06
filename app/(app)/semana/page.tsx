@@ -3,8 +3,10 @@ import { getWeekTasksView, getBacklogTasksView } from "@/lib/queries/tasks";
 import { getTeamMembers } from "@/lib/queries/members";
 import { getCurrentUser } from "@/lib/queries/auth";
 import { getHsView, getHsSpaces, resolveHsView } from "@/lib/queries/hsView";
+import { getServerToday } from "@/lib/queries/today";
 import { isAdmin } from "@/lib/roles";
-import { currentWeekDays, next30Days, monthRange, todayISO } from "@/lib/dates";
+import { parseISO } from "date-fns";
+import { currentWeekDays, next30Days, monthRange } from "@/lib/dates";
 import { WeekBoard } from "@/components/week/WeekBoard";
 
 export default async function SemanaPage() {
@@ -17,10 +19,13 @@ export default async function SemanaPage() {
   ]);
   if (!team || !user) return null;
 
-  const weekDays = currentWeekDays();
-  const monthDays = next30Days();
+  // "Hoy" en la zona del usuario; la semana/mes se calculan desde ahí.
+  const today = await getServerToday();
+  const base = parseISO(today);
+  const weekDays = currentWeekDays(base);
+  const monthDays = next30Days(base);
   // Traemos las tareas de los 30 días (la semana es un subconjunto).
-  const { start, end } = monthRange();
+  const { start, end } = monthRange(base);
 
   const { teamIds, mineUid, multiSpace } = resolveHsView(
     hsView,
@@ -43,7 +48,7 @@ export default async function SemanaPage() {
     <WeekBoard
       weekDays={weekDays}
       monthDays={monthDays}
-      today={todayISO()}
+      today={today}
       initialTasks={[...rangeTasks, ...backlog]}
       members={members}
       currentUserId={user.id}

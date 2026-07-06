@@ -24,6 +24,7 @@ export default async function PerfilPage() {
         fullName={profile.full_name}
         avatarColor={profile.avatar_color}
         avatarUrl={profile.avatar_url}
+        timezone={profile.timezone}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { updateProfileAction, uploadAvatarAction } from "@/lib/actions/profile";
 import { PROJECT_COLORS } from "@/lib/projectColors";
+import { TIMEZONE_OPTIONS } from "@/lib/dates";
 
 /** Colores para el avatar (la misma paleta luminosa de los proyectos). */
 const AVATAR_COLORS = ["#0cc0df", ...PROJECT_COLORS] as const;
@@ -15,15 +16,18 @@ export function ProfileSettings({
   fullName,
   avatarColor,
   avatarUrl,
+  timezone,
 }: {
   fullName: string;
   avatarColor: string;
   avatarUrl: string | null;
+  timezone: string;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(fullName);
   const [color, setColor] = useState(avatarColor);
+  const [tz, setTz] = useState(timezone);
   const [url, setUrl] = useState(avatarUrl);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -61,7 +65,7 @@ export function ProfileSettings({
     setError(null);
     setSaved(false);
     startTransition(async () => {
-      const res = await updateProfileAction({ fullName: name, avatarColor: color });
+      const res = await updateProfileAction({ fullName: name, avatarColor: color, timezone: tz });
       if (!res.ok) {
         setError(res.error);
         return;
@@ -117,6 +121,30 @@ export function ProfileSettings({
           onChange={(e) => setName(e.target.value)}
           className="rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
         />
+      </label>
+
+      {/* Zona horaria */}
+      <label className="flex flex-col gap-1">
+        <span className="font-body text-xs uppercase tracking-[0.12em] text-fg-muted">
+          Zona horaria (tu país)
+        </span>
+        <select
+          value={tz}
+          onChange={(e) => setTz(e.target.value)}
+          className="rounded-[var(--radius-sm)] border border-[var(--border-default)] bg-surface px-3 py-2 font-body text-base text-fg outline-none focus:border-[var(--border-active)]"
+        >
+          {TIMEZONE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+          {!TIMEZONE_OPTIONS.some((o) => o.value === tz) && (
+            <option value={tz}>{tz}</option>
+          )}
+        </select>
+        <span className="font-body text-xs text-fg-muted">
+          Así “Hoy” y el calendario usan tu hora local (no la del servidor).
+        </span>
       </label>
 
       {/* Color */}

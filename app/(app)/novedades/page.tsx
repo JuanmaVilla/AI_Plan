@@ -4,7 +4,8 @@ import { isAdmin } from "@/lib/roles";
 import { getNewsEntries } from "@/lib/queries/news";
 import { getProjects } from "@/lib/queries/projects";
 import { getTodayWorkStats } from "@/lib/queries/time";
-import { humanDay, todayISO } from "@/lib/dates";
+import { humanDay } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
 import { WorkTimer } from "@/components/hoy/WorkTimer";
 import { NewsForm, type NewsProject } from "@/components/novedades/NewsForm";
 import { NewsFeed } from "@/components/novedades/NewsFeed";
@@ -12,6 +13,7 @@ import { NewsFeed } from "@/components/novedades/NewsFeed";
 export default async function NovedadesPage() {
   const [team, user] = await Promise.all([getMyTeam(), getCurrentUser()]);
   if (!team) return null;
+  const today = await getServerToday();
 
   // Novedades, proyectos y estadísticas del cronómetro en paralelo.
   const [entries, rawProjects, workStats] = await Promise.all([
@@ -38,7 +40,7 @@ export default async function NovedadesPage() {
 
       <header className="flex flex-col gap-1">
         <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-          {humanDay(todayISO())}
+          {humanDay(today)}
         </span>
         <h1
           className="font-display text-4xl font-black text-fg"

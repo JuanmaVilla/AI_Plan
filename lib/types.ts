@@ -291,6 +291,7 @@ export type Database = {
           full_name: string
           id: string
           onboarding_done: boolean
+          timezone: string
         }
         Insert: {
           avatar_color?: string
@@ -299,6 +300,7 @@ export type Database = {
           full_name?: string
           id: string
           onboarding_done?: boolean
+          timezone?: string
         }
         Update: {
           avatar_color?: string
@@ -307,6 +309,7 @@ export type Database = {
           full_name?: string
           id?: string
           onboarding_done?: boolean
+          timezone?: string
         }
         Relationships: []
       }

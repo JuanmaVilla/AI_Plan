@@ -4,7 +4,8 @@ import { getTodayTasksView } from "@/lib/queries/tasks";
 import { getProjects } from "@/lib/queries/projects";
 import { getTodayWorkStats, getTasksTotalMinutes } from "@/lib/queries/time";
 import { getHsView, getHsSpaces, resolveHsView } from "@/lib/queries/hsView";
-import { humanDay, todayISO } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
+import { humanDay } from "@/lib/dates";
 import { NewTaskButton } from "@/components/tasks/NewTaskButton";
 import { HsViewSelector } from "@/components/layout/HsViewSelector";
 import { WorkTimer } from "@/components/hoy/WorkTimer";
@@ -31,10 +32,11 @@ export default async function HoyPage() {
     user.id
   );
   const teamNames = Object.fromEntries(teams.map((t) => [t.team_id, t.name]));
+  const today = await getServerToday();
 
   // Tareas de hoy (según la vista), cronómetro y proyectos en paralelo.
   const [tasks, workStats, projects] = await Promise.all([
-    getTodayTasksView(teamIds, mineUid),
+    getTodayTasksView(teamIds, mineUid, today),
     getTodayWorkStats(user.id, team.team_id),
     getProjects(team.team_id),
   ]);
@@ -64,7 +66,7 @@ export default async function HoyPage() {
       {/* ── Header ── */}
       <header className="flex flex-col gap-1">
         <span className="font-body text-xs font-semibold uppercase tracking-[0.14em] text-fg-muted">
-          {humanDay(todayISO())}
+          {humanDay(today)}
         </span>
         <div className="flex items-end justify-between gap-4">
           <h1

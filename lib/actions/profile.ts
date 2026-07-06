@@ -5,11 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/queries/auth";
 import type { TablesUpdate } from "@/lib/types";
 
-/** Actualiza el perfil propio: color del avatar, foto (URL pública) y/o nombre. */
+/** Actualiza el perfil propio: color del avatar, foto (URL pública), nombre y/o zona. */
 export async function updateProfileAction(patch: {
   avatarColor?: string;
   avatarUrl?: string | null;
   fullName?: string;
+  timezone?: string;
 }) {
   const user = await getCurrentUser();
   if (!user) return { ok: false as const, error: "No hay sesión." };
@@ -17,6 +18,7 @@ export async function updateProfileAction(patch: {
   const update: TablesUpdate<"profiles"> = {};
   if (patch.avatarColor !== undefined) update.avatar_color = patch.avatarColor;
   if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl;
+  if (patch.timezone !== undefined) update.timezone = patch.timezone;
   if (patch.fullName !== undefined) {
     const name = patch.fullName.trim();
     if (!name) return { ok: false as const, error: "El nombre no puede quedar vacío." };

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getMyTeam } from "@/lib/queries/teams";
 import { createNewsEntry, deleteNewsEntry } from "@/lib/queries/news";
-import { todayISO } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
 
 export async function createNewsAction(input: {
   projectId: string | null;
@@ -24,7 +24,7 @@ export async function createNewsAction(input: {
     advances,
     problem: input.problem || null,
     nextSteps: input.nextSteps || null,
-    forDate: input.forDate ?? todayISO(),
+    forDate: input.forDate ?? (await getServerToday()),
   });
 
   if (!entry) return { ok: false, error: "No se pudo guardar." };

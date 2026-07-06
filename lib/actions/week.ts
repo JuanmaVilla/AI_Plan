@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { updateTaskSchedule, setTaskAssignees, addTaskAssignee } from "@/lib/queries/tasks";
-import { todayISO } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
 
 function revalidate() {
   revalidatePath("/semana");
@@ -13,8 +13,8 @@ function revalidate() {
 
 /** Mueve una tarea a un día ('yyyy-MM-dd') o al backlog (null). */
 export async function moveTaskAction(taskId: string, scheduledDate: string | null) {
-  // No se pueden agendar tareas en días que ya pasaron.
-  if (scheduledDate !== null && scheduledDate < todayISO()) {
+  // No se pueden agendar tareas en días que ya pasaron (en la zona del usuario).
+  if (scheduledDate !== null && scheduledDate < (await getServerToday())) {
     return { ok: false as const, error: "No podés agendar en un día que ya pasó." };
   }
   await updateTaskSchedule(taskId, scheduledDate);

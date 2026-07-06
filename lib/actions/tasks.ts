@@ -11,7 +11,7 @@ import {
   getTaskForDuplicate,
 } from "@/lib/queries/tasks";
 import { isAdmin } from "@/lib/roles";
-import { todayISO } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
 
 /** Objetivo para el selector de nueva tarea (con su proyecto). */
 export type PickObjective = {
@@ -50,7 +50,7 @@ export async function createTaskAction(input: {
   const title = input.title.trim();
   if (!title) return { ok: false as const, error: "Escribí la tarea." };
   if (!input.objectiveId) return { ok: false as const, error: "Elegí un objetivo." };
-  if (input.scheduledDate !== null && input.scheduledDate < todayISO()) {
+  if (input.scheduledDate !== null && input.scheduledDate < (await getServerToday())) {
     return { ok: false as const, error: "No podés crear tareas en un día que ya pasó." };
   }
 
@@ -96,7 +96,7 @@ export async function renameTaskAction(taskId: string, title: string) {
  * si la agenda (RLS no le permite asignar a otros).
  */
 export async function duplicateTaskAction(taskId: string, scheduledDate: string | null) {
-  if (scheduledDate !== null && scheduledDate < todayISO()) {
+  if (scheduledDate !== null && scheduledDate < (await getServerToday())) {
     return { ok: false as const, error: "No podés duplicar hacia un día que ya pasó." };
   }
 

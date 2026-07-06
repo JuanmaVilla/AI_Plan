@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types";
-import { todayISO } from "@/lib/dates";
+import { getServerToday } from "@/lib/queries/today";
 
 export type TimeSession = Tables<"time_sessions">;
 
@@ -23,14 +23,15 @@ export async function getTasksMinutesToday(
   userId: string
 ): Promise<Record<string, number>> {
   const supabase = await createClient();
+  const today = await getServerToday();
   const { data } = await supabase
     .from("time_sessions")
     .select("task_id, minutes")
     .eq("team_id", teamId)
     .eq("user_id", userId)
     .not("ended_at", "is", null)
-    .gte("started_at", todayISO() + "T00:00:00")
-    .lte("started_at", todayISO() + "T23:59:59");
+    .gte("started_at", today + "T00:00:00")
+    .lte("started_at", today + "T23:59:59");
 
   const map: Record<string, number> = {};
   for (const row of data ?? []) {
@@ -67,7 +68,7 @@ export async function getTodayWorkStats(
   activeTaskTitle: string | null;
 }> {
   const supabase = await createClient();
-  const today = todayISO();
+  const today = await getServerToday();
 
   const [{ data: closed }, activeSession] = await Promise.all([
     supabase

@@ -101,7 +101,9 @@ async function mineOrClauseForTeams(teamIds: string[], uid: string): Promise<str
  */
 export async function getTodayTasksView(
   teamIds: string[],
-  mineUid: string | null
+  mineUid: string | null,
+  /** "Hoy" en la zona del usuario (yyyy-MM-dd). */
+  today: string
 ): Promise<TaskWithMeta[]> {
   if (teamIds.length === 0) return [];
   const supabase = await createClient();
@@ -109,7 +111,7 @@ export async function getTodayTasksView(
     .from("tasks")
     .select(SELECT)
     .in("team_id", teamIds)
-    .eq("scheduled_date", todayISO());
+    .eq("scheduled_date", today);
   if (mineUid) q = q.or(await mineOrClauseForTeams(teamIds, mineUid));
   const { data } = await q.order("created_at", { ascending: true });
   return shape(data ?? []);

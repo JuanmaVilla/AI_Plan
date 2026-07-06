@@ -3,7 +3,7 @@ import { es } from "date-fns/locale";
 import { getMyTeam } from "@/lib/queries/teams";
 import { getTeamMembers } from "@/lib/queries/members";
 import { getDailyWorkByMember } from "@/lib/queries/time";
-import { getCurrentUser } from "@/lib/queries/auth";
+import { getServerToday } from "@/lib/queries/today";
 import { currentWeekDays, weekRange, isToday } from "@/lib/dates";
 import { Avatar } from "@/components/ui/avatar";
 
@@ -18,9 +18,11 @@ function fmtMinutes(min: number): string {
 
 export default async function TiemposPage() {
   const team = await getMyTeam();
+  const today = await getServerToday();
+  const base = parseISO(today);
 
-  const days = currentWeekDays();
-  const { start, end } = weekRange();
+  const days = currentWeekDays(base);
+  const { start, end } = weekRange(base);
 
   const [members, byMember] = await Promise.all([
     team ? getTeamMembers(team.team_id) : Promise.resolve([]),
@@ -75,7 +77,7 @@ export default async function TiemposPage() {
                   <th
                     key={d}
                     className={`px-3 py-3 text-center font-body text-[11px] font-semibold uppercase tracking-[0.08em] ${
-                      isToday(d) ? "text-accent-mint" : "text-fg-muted"
+                      isToday(d, today) ? "text-accent-mint" : "text-fg-muted"
                     }`}
                   >
                     {format(parseISO(d), "EEE", { locale: es })}
@@ -116,7 +118,7 @@ export default async function TiemposPage() {
                           key={d}
                           className={`px-3 py-3 text-center font-body text-sm tabular-nums ${
                             v > 0 ? "text-fg-secondary" : "text-fg-disabled"
-                          } ${isToday(d) ? "bg-white/[0.03]" : ""}`}
+                          } ${isToday(d, today) ? "bg-white/[0.03]" : ""}`}
                         >
                           {fmtMinutes(v)}
                         </td>
