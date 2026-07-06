@@ -25,7 +25,7 @@ export function DayColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-[160px] min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border p-2.5 transition-colors ${
+      className={`flex min-h-[160px] min-w-0 flex-col gap-2 rounded-2xl border p-2.5 transition-colors ${
         isOver
           ? "border-[var(--border-active)] bg-[var(--accent-cyan-dim)]"
           : isToday

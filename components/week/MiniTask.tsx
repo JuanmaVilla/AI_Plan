@@ -56,7 +56,7 @@ export function MiniTask({
       style={style}
       {...attributes}
       {...listeners}
-      className="glass-card proj-glow flex cursor-grab touch-none flex-col gap-2 overflow-hidden rounded-[22px] border-l-[3px] p-3 active:cursor-grabbing"
+      className="glass-card proj-glow flex cursor-grab touch-none flex-col gap-2 rounded-[22px] border-l-[3px] p-3 active:cursor-grabbing"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-2">
