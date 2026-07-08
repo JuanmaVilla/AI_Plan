@@ -181,7 +181,7 @@ export function WeekBoard({
         </div>
       </header>
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext id="week-board" sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div
             className={`grid min-w-0 flex-1 grid-cols-2 gap-3 sm:grid-cols-3 ${
