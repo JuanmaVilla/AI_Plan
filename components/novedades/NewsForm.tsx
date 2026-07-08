@@ -12,6 +12,7 @@ const STEPS = [
   { key: "advances", label: "¿Qué avanzaste?", optional: false },
   { key: "problem", label: "¿Hubo algún problema o bloqueo?", optional: true },
   { key: "next_steps", label: "¿Cuáles son los próximos pasos?", optional: true },
+  { key: "links", label: "¿Querés dejar algún link?", optional: true },
 ] as const;
 
 export function NewsForm({ projects }: { projects: NewsProject[] }) {
@@ -21,6 +22,8 @@ export function NewsForm({ projects }: { projects: NewsProject[] }) {
   const [advances, setAdvances] = useState<string[]>([""]);
   const [problem, setProblem] = useState("");
   const [nextSteps, setNextSteps] = useState("");
+  const [summaryLink, setSummaryLink] = useState("");
+  const [workLink, setWorkLink] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -30,6 +33,8 @@ export function NewsForm({ projects }: { projects: NewsProject[] }) {
     setAdvances([""]);
     setProblem("");
     setNextSteps("");
+    setSummaryLink("");
+    setWorkLink("");
     setError("");
     setOpen(false);
   }
@@ -54,7 +59,7 @@ export function NewsForm({ projects }: { projects: NewsProject[] }) {
   function submit() {
     setError("");
     startTransition(async () => {
-      const res = await createNewsAction({ projectId, advances, problem, nextSteps });
+      const res = await createNewsAction({ projectId, advances, problem, nextSteps, summaryLink, workLink });
       if (res.ok) {
         reset();
       } else {
@@ -184,6 +189,44 @@ export function NewsForm({ projects }: { projects: NewsProject[] }) {
           rows={3}
           className="w-full resize-none rounded-xl border border-[var(--border-default)] bg-surface px-3 py-2.5 font-body text-sm text-fg placeholder:text-fg-disabled focus:border-[var(--border-active)] focus:outline-none"
         />
+      )}
+
+      {/* Step 4: Links */}
+      {step === 4 && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="font-body text-xs font-semibold text-fg-secondary">
+              Link del resumen del avance
+            </label>
+            <p className="font-body text-[11px] text-fg-muted">
+              Un Excel, Google Docs, n8n… donde se ve el resumen de lo que hicimos.
+            </p>
+            <input
+              type="url"
+              inputMode="url"
+              value={summaryLink}
+              onChange={(e) => setSummaryLink(e.target.value)}
+              placeholder="https://docs.google.com/…"
+              className="w-full rounded-xl border border-[var(--border-default)] bg-surface px-3 py-2.5 font-body text-sm text-fg placeholder:text-fg-disabled focus:border-[var(--border-active)] focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="font-body text-xs font-semibold text-fg-secondary">
+              Link del trabajo en sí
+            </label>
+            <p className="font-body text-[11px] text-fg-muted">
+              Donde se puede ver el trabajo hecho (la web, el diseño, el repo…).
+            </p>
+            <input
+              type="url"
+              inputMode="url"
+              value={workLink}
+              onChange={(e) => setWorkLink(e.target.value)}
+              placeholder="https://…"
+              className="w-full rounded-xl border border-[var(--border-default)] bg-surface px-3 py-2.5 font-body text-sm text-fg placeholder:text-fg-disabled focus:border-[var(--border-active)] focus:outline-none"
+            />
+          </div>
+        </div>
       )}
 
       {error && <p className="mt-2 font-body text-sm text-[var(--color-error)]">{error}</p>}

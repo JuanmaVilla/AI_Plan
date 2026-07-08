@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, FileText, ExternalLink } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { Avatar } from "@/components/ui/avatar";
@@ -114,6 +114,38 @@ function EntryCard({ entry, canDelete }: { entry: NewsEntryWithMeta; canDelete: 
                 → Próximos pasos
               </span>
               <p className="font-body text-sm text-fg-secondary">{entry.next_steps}</p>
+            </div>
+          )}
+
+          {(entry.summary_link || entry.work_link) && (
+            <div className="flex flex-col gap-1.5">
+              <span className="font-body text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
+                🔗 Links
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {entry.summary_link && (
+                  <a
+                    href={entry.summary_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3 py-1.5 font-body text-xs font-semibold text-fg-secondary transition-colors hover:border-[var(--border-active)] hover:text-fg"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Resumen del avance
+                  </a>
+                )}
+                {entry.work_link && (
+                  <a
+                    href={entry.work_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border-default)] px-3 py-1.5 font-body text-xs font-semibold text-fg-secondary transition-colors hover:border-[var(--border-active)] hover:text-fg"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Ver el trabajo
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>

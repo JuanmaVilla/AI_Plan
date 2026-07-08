@@ -10,6 +10,8 @@ export async function createNewsAction(input: {
   advances: string[];
   problem: string;
   nextSteps: string;
+  summaryLink?: string;
+  workLink?: string;
   forDate?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const advances = input.advances.filter((a) => a.trim());
@@ -24,6 +26,8 @@ export async function createNewsAction(input: {
     advances,
     problem: input.problem || null,
     nextSteps: input.nextSteps || null,
+    summaryLink: input.summaryLink || null,
+    workLink: input.workLink || null,
     forDate: input.forDate ?? (await getServerToday()),
   });
 

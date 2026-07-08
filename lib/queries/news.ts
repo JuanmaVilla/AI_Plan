@@ -36,6 +36,8 @@ export type CreateNewsInput = {
   advances: string[];
   problem: string | null;
   nextSteps: string | null;
+  summaryLink: string | null;
+  workLink: string | null;
   forDate: string;
 };
 
@@ -44,7 +46,7 @@ export async function createNewsEntry(input: CreateNewsInput): Promise<NewsEntry
   if (!user) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("news_entries")
     .insert({
       team_id: input.teamId,
@@ -53,15 +55,19 @@ export async function createNewsEntry(input: CreateNewsInput): Promise<NewsEntry
       advances: input.advances.filter((a) => a.trim()),
       problem: input.problem?.trim() || null,
       next_steps: input.nextSteps?.trim() || null,
+      summary_link: input.summaryLink?.trim() || null,
+      work_link: input.workLink?.trim() || null,
       for_date: input.forDate,
     })
     .select("*")
     .single();
 
+  if (error) console.error("createNewsEntry:", error.message);
   return data ?? null;
 }
 
 export async function deleteNewsEntry(id: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("news_entries").delete().eq("id", id);
+  const { error } = await supabase.from("news_entries").delete().eq("id", id);
+  if (error) throw error;
 }

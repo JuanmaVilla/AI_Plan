@@ -63,7 +63,7 @@ export function MiniTask({
           <DoneToggle done={done} onToggle={toggleDone} size={16} />
           <span
             className={`min-w-0 break-words [overflow-wrap:anywhere] font-primary text-sm font-black leading-tight tracking-[-0.01em] xl:text-base ${
-              done ? "text-fg-muted line-through" : "text-fg"
+              done ? "text-fg-muted line-through" : "text-black dark:text-white"
             }`}
           >
             {task.title}

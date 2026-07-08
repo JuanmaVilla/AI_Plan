@@ -198,6 +198,8 @@ create table if not exists news_entries (
   advances   text[] not null default '{}',
   problem    text,
   next_steps text,
+  summary_link text,
+  work_link    text,
   for_date   date not null default current_date,
   created_at timestamptz not null default now()
 );
