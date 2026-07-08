@@ -53,6 +53,58 @@ export function toISODate(d: Date): string {
   return format(d, "yyyy-MM-dd");
 }
 
+/**
+ * Offset (en ms) de una zona horaria en un instante dado: hora_local - UTC.
+ * Ej: Buenos Aires (UTC-3) → -3*3600*1000. Considera DST del instante.
+ */
+function tzOffsetMs(timeZone: string, at: Date): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const p: Record<string, number> = {};
+  for (const part of dtf.formatToParts(at)) {
+    if (part.type !== "literal") p[part.type] = Number(part.value);
+  }
+  // Intl da hour 24 para medianoche en algunos motores; normalizar a 0.
+  const hour = p.hour === 24 ? 0 : p.hour;
+  const asUTC = Date.UTC(p.year, p.month - 1, p.day, hour, p.minute, p.second);
+  return asUTC - at.getTime();
+}
+
+/**
+ * Instante UTC (ISO con 'Z') de la medianoche local de `dayISO` en `timeZone`.
+ * Sirve como cota para comparar contra columnas `timestamptz` sin corrimiento
+ * de zona horaria (el server corre en UTC).
+ */
+export function zonedDayStartUtc(dayISO: string, timeZone: string): string {
+  const utcMidnight = Date.parse(dayISO + "T00:00:00Z");
+  const offset = tzOffsetMs(timeZone, new Date(utcMidnight));
+  return new Date(utcMidnight - offset).toISOString();
+}
+
+/** Igual que `zonedDayStartUtc` pero para el día siguiente (cota superior con `<`). */
+export function zonedNextDayStartUtc(dayISO: string, timeZone: string): string {
+  const next = toISODate(addDays(parseISO(dayISO), 1));
+  return zonedDayStartUtc(next, timeZone);
+}
+
+/** Fecha 'yyyy-MM-dd' de un instante, en la zona del usuario (para agrupar por día). */
+export function isoDateInTimeZone(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 /** Lunes a domingo de la semana actual, como array de 7 'yyyy-MM-dd'. */
 export function currentWeekDays(base: Date = new Date()): string[] {
   const monday = startOfWeek(base, { weekStartsOn: 1 });

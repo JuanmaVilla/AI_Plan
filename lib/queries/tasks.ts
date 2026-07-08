@@ -237,7 +237,11 @@ export async function updateTaskSchedule(
   scheduledDate: string | null
 ): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").update({ scheduled_date: scheduledDate }).eq("id", taskId);
+  const { error } = await supabase
+    .from("tasks")
+    .update({ scheduled_date: scheduledDate })
+    .eq("id", taskId);
+  if (error) throw error;
 }
 
 /**
@@ -261,16 +265,18 @@ export async function setTaskAssignees(
   const toAdd = profileIds.filter((id) => !currentIds.includes(id));
 
   if (toRemove.length > 0) {
-    await supabase
+    const { error } = await supabase
       .from("task_assignees")
       .delete()
       .eq("task_id", taskId)
       .in("profile_id", toRemove);
+    if (error) throw error;
   }
   if (toAdd.length > 0) {
-    await supabase
+    const { error } = await supabase
       .from("task_assignees")
       .insert(toAdd.map((profileId) => ({ task_id: taskId, profile_id: profileId, team_id: teamId })));
+    if (error) throw error;
   }
 }
 
@@ -281,12 +287,13 @@ export async function addTaskAssignee(
   profileId: string
 ): Promise<void> {
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("task_assignees")
     .upsert(
       { task_id: taskId, profile_id: profileId, team_id: teamId },
       { onConflict: "task_id,profile_id", ignoreDuplicates: true }
     );
+  if (error) throw error;
 }
 
 export type CreateTaskInput = {
@@ -304,7 +311,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task | null> {
   if (!user) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tasks")
     .insert({
       team_id: input.teamId,
@@ -317,23 +324,31 @@ export async function createTask(input: CreateTaskInput): Promise<Task | null> {
     .select("*")
     .single();
 
-  if (data && input.assigneeIds && input.assigneeIds.length > 0) {
-    await supabase.from("task_assignees").insert(
+  // Si el insert falló, devolvemos null: la action lo traduce a "no se pudo crear".
+  if (error || !data) {
+    if (error) console.error("createTask:", error.message);
+    return null;
+  }
+
+  if (input.assigneeIds && input.assigneeIds.length > 0) {
+    const { error: aErr } = await supabase.from("task_assignees").insert(
       input.assigneeIds.map((profileId) => ({
         task_id: data.id,
         profile_id: profileId,
         team_id: input.teamId,
       }))
     );
+    if (aErr) throw aErr;
   }
 
-  return data ?? null;
+  return data;
 }
 
 /** Renombra una tarea. */
 export async function updateTaskTitle(taskId: string, title: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").update({ title: title.trim() }).eq("id", taskId);
+  const { error } = await supabase.from("tasks").update({ title: title.trim() }).eq("id", taskId);
+  if (error) throw error;
 }
 
 /** Datos mínimos de una tarea para duplicarla. */
@@ -363,21 +378,25 @@ export async function getTaskForDuplicate(taskId: string): Promise<{
 export async function updateTaskProgress(taskId: string, progress: number): Promise<void> {
   const supabase = await createClient();
   const clamped = Math.max(0, Math.min(100, Math.round(progress)));
-  await supabase.from("tasks").update({ progress: clamped }).eq("id", taskId);
+  const { error } = await supabase.from("tasks").update({ progress: clamped }).eq("id", taskId);
+  if (error) throw error;
 }
 
 export async function updateTaskNote(taskId: string, note: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").update({ note }).eq("id", taskId);
+  const { error } = await supabase.from("tasks").update({ note }).eq("id", taskId);
+  if (error) throw error;
 }
 
 /** Marca/desmarca la tarea como terminada (tacha, no borra). */
 export async function updateTaskDone(taskId: string, done: boolean): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").update({ done }).eq("id", taskId);
+  const { error } = await supabase.from("tasks").update({ done }).eq("id", taskId);
+  if (error) throw error;
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").delete().eq("id", taskId);
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  if (error) throw error;
 }

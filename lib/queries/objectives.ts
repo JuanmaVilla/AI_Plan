@@ -132,7 +132,7 @@ export async function createObjective(input: CreateObjectiveInput): Promise<Obje
   if (!user) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("objectives")
     .insert({
       team_id: input.teamId,
@@ -147,6 +147,7 @@ export async function createObjective(input: CreateObjectiveInput): Promise<Obje
     .select("*")
     .single();
 
+  if (error) console.error("createObjective:", error.message);
   return data ?? null;
 }
 
@@ -156,25 +157,20 @@ export async function createObjective(input: CreateObjectiveInput): Promise<Obje
  */
 export async function archiveObjective(objectiveId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("tasks").delete().eq("objective_id", objectiveId);
-  await supabase.from("objectives").update({ archived: true }).eq("id", objectiveId);
+  // RPC atómica (SECURITY DEFINER): borra tareas y archiva el objetivo en una
+  // sola transacción, así nunca quedan tareas huérfanas si algo falla a medias.
+  const { error } = await supabase.rpc("archive_objective", { obj: objectiveId });
+  if (error) throw error;
 }
 
 /** Archiva el proyecto en cascada: borra tareas, archiva objetivos y proyecto. */
 export async function archiveProjectCascade(teamId: string, projectId: string): Promise<void> {
   const supabase = await createClient();
-  const { data: objs } = await supabase
-    .from("objectives")
-    .select("id")
-    .eq("team_id", teamId)
-    .eq("project_id", projectId);
-  const ids = (objs ?? []).map((o) => o.id);
-
-  if (ids.length > 0) {
-    await supabase.from("tasks").delete().in("objective_id", ids);
-    await supabase.from("objectives").update({ archived: true }).in("id", ids);
-  }
-  await supabase.from("projects").update({ archived: true }).eq("id", projectId);
+  // RPC atómica: toda la cascada en una transacción. `teamId` ya no se usa (la
+  // función deriva el equipo del proyecto), pero se mantiene por compatibilidad.
+  void teamId;
+  const { error } = await supabase.rpc("archive_project_cascade", { proj: projectId });
+  if (error) throw error;
 }
 
 export async function updateObjective(
@@ -187,5 +183,6 @@ export async function updateObjective(
   if (patch.kpi !== undefined) update.kpi = patch.kpi.trim();
   if (patch.targetDate !== undefined) update.target_date = patch.targetDate;
   if (patch.color !== undefined) update.color = patch.color;
-  await supabase.from("objectives").update(update).eq("id", objectiveId);
+  const { error } = await supabase.from("objectives").update(update).eq("id", objectiveId);
+  if (error) throw error;
 }

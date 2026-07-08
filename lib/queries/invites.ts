@@ -17,5 +17,6 @@ export async function maybeClaimInvites(userId: string): Promise<void> {
   lastChecked.set(userId, now);
 
   const supabase = await createClient();
-  await supabase.rpc("claim_pending_invites");
+  const { error } = await supabase.rpc("claim_pending_invites");
+  if (error) console.error("maybeClaimInvites:", error.message);
 }

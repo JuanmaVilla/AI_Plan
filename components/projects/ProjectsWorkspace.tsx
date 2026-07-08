@@ -23,13 +23,22 @@ export function ProjectsWorkspace({
   const reduce = useReducedMotion();
 
   useEffect(() => {
-    const saved = localStorage.getItem("projects-view");
-    if (saved === "orbit" || saved === "normal") setView(saved);
+    // localStorage puede lanzar (modo privado, cookies bloqueadas): no romper.
+    try {
+      const saved = localStorage.getItem("projects-view");
+      if (saved === "orbit" || saved === "normal") setView(saved);
+    } catch {
+      /* sin persistencia: se queda con el default */
+    }
   }, []);
 
   function changeView(v: View) {
     setView(v);
-    localStorage.setItem("projects-view", v);
+    try {
+      localStorage.setItem("projects-view", v);
+    } catch {
+      /* no persistir no debe impedir cambiar la vista */
+    }
   }
 
   const fade = reduce

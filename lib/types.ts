@@ -171,7 +171,9 @@ export type Database = {
           next_steps: string | null
           problem: string | null
           project_id: string | null
+          summary_link: string | null
           team_id: string
+          work_link: string | null
         }
         Insert: {
           advances?: string[]
@@ -182,7 +184,9 @@ export type Database = {
           next_steps?: string | null
           problem?: string | null
           project_id?: string | null
+          summary_link?: string | null
           team_id: string
+          work_link?: string | null
         }
         Update: {
           advances?: string[]
@@ -193,7 +197,9 @@ export type Database = {
           next_steps?: string | null
           problem?: string | null
           project_id?: string | null
+          summary_link?: string | null
           team_id?: string
+          work_link?: string | null
         }
         Relationships: [
           {
@@ -659,6 +665,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_objective: { Args: { obj: string }; Returns: undefined }
+      archive_project_cascade: { Args: { proj: string }; Returns: undefined }
       claim_pending_invites: { Args: never; Returns: number }
       create_team_for_current_user: {
         Args: { team_name: string }

@@ -38,7 +38,7 @@ export type CreateKpiInput = {
 
 export async function createKpi(input: CreateKpiInput): Promise<Kpi | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("kpis")
     .insert({
       team_id: input.teamId,
@@ -49,6 +49,7 @@ export async function createKpi(input: CreateKpiInput): Promise<Kpi | null> {
     })
     .select("*")
     .single();
+  if (error) console.error("createKpi:", error.message);
   return data ?? null;
 }
 
@@ -62,10 +63,12 @@ export async function updateKpi(
   if (patch.targetValue !== undefined) update.target_value = patch.targetValue;
   if (patch.currentValue !== undefined) update.current_value = patch.currentValue;
   if (patch.unit !== undefined) update.unit = patch.unit.trim();
-  await supabase.from("kpis").update(update).eq("id", kpiId);
+  const { error } = await supabase.from("kpis").update(update).eq("id", kpiId);
+  if (error) throw error;
 }
 
 export async function deleteKpi(kpiId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("kpis").delete().eq("id", kpiId);
+  const { error } = await supabase.from("kpis").delete().eq("id", kpiId);
+  if (error) throw error;
 }

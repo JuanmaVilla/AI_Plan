@@ -49,7 +49,7 @@ export async function createMeta(input: CreateMetaInput): Promise<Meta | null> {
   if (!user) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("company_objectives")
     .insert({
       team_id: input.teamId,
@@ -63,12 +63,14 @@ export async function createMeta(input: CreateMetaInput): Promise<Meta | null> {
     .select("*")
     .single();
 
+  if (error) console.error("createMeta:", error.message);
   return data ?? null;
 }
 
 export async function archiveMeta(metaId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.from("company_objectives").update({ archived: true }).eq("id", metaId);
+  const { error } = await supabase.from("company_objectives").update({ archived: true }).eq("id", metaId);
+  if (error) throw error;
 }
 
 export async function updateMeta(
@@ -81,5 +83,6 @@ export async function updateMeta(
   if (patch.kpi !== undefined) update.kpi = patch.kpi.trim();
   if (patch.targetDate !== undefined) update.target_date = patch.targetDate;
   if (patch.color !== undefined) update.color = patch.color;
-  await supabase.from("company_objectives").update(update).eq("id", metaId);
+  const { error } = await supabase.from("company_objectives").update(update).eq("id", metaId);
+  if (error) throw error;
 }

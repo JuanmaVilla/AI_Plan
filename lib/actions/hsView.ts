@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { HS_VIEW_COOKIE, HS_SPACES_COOKIE, type HsView } from "@/lib/queries/hsView";
+import { getMyTeams } from "@/lib/queries/teams";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 año
 
@@ -18,8 +19,12 @@ export async function setHsViewAction(view: HsView) {
 /** Elige de qué espacios ver en la vista "mine_all" (lista de team_id). */
 export async function setHsSpacesAction(teamIds: string[]) {
   const store = await cookies();
-  if (teamIds.length === 0) store.delete(HS_SPACES_COOKIE);
-  else store.set(HS_SPACES_COOKIE, teamIds.join(","), { path: "/", maxAge: COOKIE_MAX_AGE });
+  // Solo guardar espacios a los que el usuario realmente pertenece (defensa en
+  // profundidad; resolveHsView igual filtra al leer, pero no ensuciamos la cookie).
+  const teams = await getMyTeams();
+  const valid = teamIds.filter((id) => teams.some((t) => t.team_id === id));
+  if (valid.length === 0) store.delete(HS_SPACES_COOKIE);
+  else store.set(HS_SPACES_COOKIE, valid.join(","), { path: "/", maxAge: COOKIE_MAX_AGE });
   revalidatePath("/hoy");
   revalidatePath("/semana");
   return { ok: true as const };
